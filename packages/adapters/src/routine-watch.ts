@@ -4,6 +4,7 @@ import type {
   AdapterContext,
   AgentHomeStore,
   ConnectorProvider,
+  ConnectorTool,
   JobPublisher,
   SandboxProvider,
 } from "@rakazo/adapter-kit";
@@ -518,7 +519,7 @@ async function readTool(
       resolved.tool.name,
       ctx.connectedConnections?.map((row) => row.externalId),
     ),
-    readOnly: resolved.tool.readOnly,
+    readOnly: declaredRead(resolved.tool),
     rules: (await listApprovalRules(deps.prisma, {
       userId: routine.userId,
       spaceId: routine.spaceId,
@@ -755,5 +756,10 @@ export async function validateRoutineWatch(
       )
     )?.tool;
   if (!tool) throw new RoutineWatchError(`No connected integration has a tool named ${name}.`);
-  assertWatchToolReadOnly(name, tool.readOnly);
+  assertWatchToolReadOnly(name, declaredRead(tool));
+}
+
+/** A batch runs whatever actions its arguments name, so it is never a declared read. */
+function declaredRead(tool: ConnectorTool): boolean | undefined {
+  return tool.batch ? undefined : tool.readOnly;
 }
