@@ -11,6 +11,10 @@ import { queryClient } from "../../src/lib/query";
 import type { ResolvedAppearance } from "../../src/lib/ui-appearance";
 import { applyResolvedAppearance } from "../../src/lib/ui-appearance";
 import "../../src/styles.css";
+import {
+  ConversationOnlyContext,
+  SharedApproverContext,
+} from "../../src/lib/workspace-capabilities";
 import { BOT, FixtureTranscript } from "./thread-fixture";
 
 // Every chat surface over fake data, so consistency can be checked without a backend.
@@ -55,6 +59,8 @@ type Scenario = {
   bots?: GroupAvatarMember[];
   /** Asks that render as no longer active instead of taking an answer. */
   inactiveAsks?: string[];
+  sharedWorkspace?: boolean;
+  sharedApprover?: boolean;
 };
 
 const greeting = user("Can you get the Q3 report ready for Monday?");
@@ -172,6 +178,39 @@ const approvalActions = [
   { id: "always", label: "Always allow this tool" },
   { id: "deny", label: "Deny" },
 ];
+const sharedApprovalMessages = [
+  message("user", [
+    {
+      kind: "text",
+      text: "Forget only the disposable shared fixture.",
+      sharedAuthor: { userId: "fixture-member", label: "Member", grantRevision: "fixture-grant" },
+    },
+  ]),
+  bot([
+    {
+      kind: "ask",
+      approvalEffectId: "fixture-shared-effect",
+      text: "Forget this shared fixture?",
+      detail: "This fixture contains no real workspace data.",
+      status: "pending",
+      actions: approvalActions,
+    },
+  ]),
+];
+const sharedMember: Scenario = {
+  id: "shared-member",
+  label: "Shared member",
+  messages: sharedApprovalMessages,
+  sharedWorkspace: true,
+  sharedApprover: false,
+};
+const sharedApprover: Scenario = {
+  id: "shared-approver",
+  label: "Shared approver",
+  messages: sharedApprovalMessages,
+  sharedWorkspace: true,
+  sharedApprover: true,
+};
 const approvals: Scenario = {
   id: "approvals",
   label: "Approvals",
@@ -576,6 +615,8 @@ const SCENARIOS: Scenario[] = [
   conversation,
   questions,
   approvals,
+  sharedMember,
+  sharedApprover,
   secrets,
   working,
   team,
@@ -631,14 +672,18 @@ function ScenarioTranscript({ view }: { view: View }) {
       .map((item) => item.id),
   );
   return (
-    <FixtureTranscript
-      key={scenario.id}
-      messages={scenario.messages}
-      running={scenario.running ?? false}
-      showToolActivity={view.tools}
-      answerableAskIds={answerable}
-      bots={scenario.bots}
-    />
+    <ConversationOnlyContext.Provider value={scenario.sharedWorkspace ?? false}>
+      <SharedApproverContext.Provider value={scenario.sharedApprover ?? false}>
+        <FixtureTranscript
+          key={scenario.id}
+          messages={scenario.messages}
+          running={scenario.running ?? false}
+          showToolActivity={view.tools}
+          answerableAskIds={answerable}
+          bots={scenario.bots}
+        />
+      </SharedApproverContext.Provider>
+    </ConversationOnlyContext.Provider>
   );
 }
 

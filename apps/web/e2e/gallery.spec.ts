@@ -63,3 +63,23 @@ test("gallery renders every chat scenario in both themes", async ({ page }, test
   await captureScreenshot(page, testInfo, "gallery-questions-phone");
   expect(errors).toEqual([]);
 });
+
+test("shared approval cards show attribution and only designated single-action controls", async ({
+  page,
+}, testInfo) => {
+  await page.goto("/e2e/fixtures/gallery.html?scenario=shared-member&theme=light");
+  await expect(page.getByText("Member", { exact: true })).toBeVisible();
+  await expect(page.getByText("Workspace approver required", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Allow once", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Deny", exact: true })).toHaveCount(0);
+  await captureScreenshot(page, testInfo, "shared-member-approval");
+
+  await page.goto("/e2e/fixtures/gallery.html?scenario=shared-approver&theme=light");
+  await expect(page.getByText("Member", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Allow once", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Deny", exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Always allow this tool", exact: true }),
+  ).toHaveCount(0);
+  await captureScreenshot(page, testInfo, "shared-designated-approver");
+});

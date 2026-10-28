@@ -73,6 +73,7 @@ function fixture({
   nativeReview = false,
   checkerConnected = true,
   skipApprovals = false,
+  sharedWorkspace = false,
   trigger = "user",
   secrets = [] as string[],
   prompt = "Read the item",
@@ -134,6 +135,7 @@ function fixture({
   nativeReview?: boolean;
   checkerConnected?: boolean;
   skipApprovals?: boolean;
+  sharedWorkspace?: boolean;
   trigger?: string;
   secrets?: string[];
   prompt?: string;
@@ -308,7 +310,21 @@ function fixture({
               role: sourceRole,
               threadId: run.threadId,
               createdAt: new Date("2026-01-01T00:00:00.000Z"),
-              blocks: [{ kind: "text", text: prompt }],
+              blocks: [
+                {
+                  kind: "text",
+                  text: prompt,
+                  ...(sharedWorkspace
+                    ? {
+                        sharedAuthor: {
+                          userId: "shared-member",
+                          grantRevision: "shared-grant-1",
+                          label: "Member",
+                        },
+                      }
+                    : {}),
+                },
+              ],
             }
           : null,
       ),
@@ -454,6 +470,20 @@ function fixture({
   });
   const enqueue = vi.fn(async (_job: unknown) => undefined);
   const executor = createRunExecutor({
+    sharedWorkspaceAccess: sharedWorkspace
+      ? {
+          isSharedSpace: (spaceId: string) => spaceId === run.spaceId,
+          resolve: async (subject: string, spaceId: string) =>
+            subject === "shared-member" && spaceId === run.spaceId
+              ? {
+                  executionUserId: run.userId,
+                  botIds: [run.botId],
+                  revision: "shared-grant-1",
+                  canSend: true,
+                }
+              : null,
+        }
+      : undefined,
     deploymentModelKey: "fixture-model-key",
     prisma: transactionalPrisma,
     runtime: { describe: () => ({ capabilities: { scripted: false } }), run: runtimeRun },
@@ -2763,4 +2793,40 @@ describe("native decision workflow", () => {
       execute.mock.calls.every((call) => call.length === 0 || (call as unknown[])[0] !== "publish"),
     ).toBe(true);
   });
+});
+
+describe("shared workspace approval authority", () => {
+  it("keeps an ordinary shared read available without an approval round trip", async () => {
+    const f = fixture({ sharedWorkspace: true, sourceRole: "user" });
+    await f.run();
+    expect(f.execute).toHaveBeenCalledOnce();
+    expect(f.pauseRunForInput).not.toHaveBeenCalled();
+    expect(reviewMock).not.toHaveBeenCalled();
+  });
+  it.each([
+    { label: "never-ask preference", skipApprovals: true, autoReview: false },
+    { label: "automatic review", skipApprovals: false, autoReview: true },
+    { label: "permanent allow rule", skipApprovals: false, autoReview: false },
+  ])(
+    "requires a designated person's receipt despite $label",
+    async ({ skipApprovals, autoReview }) => {
+      reviewMock.mockResolvedValue({ decision: "pass", reason: "Fixture", model: "mock" });
+      const name = "demo_update_item";
+      const f = fixture({
+        name,
+        readOnly: false,
+        sourceRole: "user",
+        sharedWorkspace: true,
+        skipApprovals,
+        autoReview,
+        rules: [{ effect: "always_allow", matchKind: "tool", matchValue: name }],
+      });
+      f.setCalls([{ args: { id: "shared-fixture" }, executionId: "shared-write" }]);
+      await f.run();
+      expect(f.execute).not.toHaveBeenCalled();
+      expect(reviewMock).not.toHaveBeenCalled();
+      expect(f.pauseRunForInput).toHaveBeenCalledOnce();
+      expect(f.effects[0]?.status).toBe("intended");
+    },
+  );
 });

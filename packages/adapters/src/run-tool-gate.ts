@@ -213,11 +213,13 @@ export async function gateToolCall(
     );
   // A gated read still fails closed when its review errors, and keeps its approval key.
   const gated = requiresApprovalByDefault || connectorReadGated;
+  const sharedWorkspace = Boolean(deps.sharedWorkspaceAccess?.isSharedSpace(run.spaceId));
   const requiresMandatoryApproval =
     commandWatch ||
     scheduleNamesNewSite ||
     requiresUnattendedApproval ||
-    toolRequiresExplicitApproval(name);
+    toolRequiresExplicitApproval(name) ||
+    (sharedWorkspace && gated);
   const resolvedRules = resolveActionApprovalForTools({
     tools: approvalToolNames.map((toolName) => ({
       name: toolName,
@@ -233,11 +235,12 @@ export async function gateToolCall(
     unidentifiedAction && resolvedRules.decision === "allow"
       ? { ...resolvedRules, decision: "ask" as const }
       : resolvedRules;
-  // Publishing a governed decision records a person's explicit approval; a
-  // general preference to skip tool confirmations cannot manufacture that record.
-  const mode = GOVERNED_MEMORY_WRITE_TOOL_NAMES.has(name)
-    ? "ask"
-    : approvalModeFromPreference(await ctx.trust.loadAutoReviewPreference());
+  // Shared consequential actions and governed decision publication require a
+  // person's explicit approval regardless of account confirmation preferences.
+  const mode =
+    sharedWorkspace || GOVERNED_MEMORY_WRITE_TOOL_NAMES.has(name)
+      ? "ask"
+      : approvalModeFromPreference(await ctx.trust.loadAutoReviewPreference());
   const reviewable = mode === "auto" && !requiresMandatoryApproval;
   const injectedReview = reviewable ? deps.autoReview : undefined;
   const reviewSettings = !reviewable || injectedReview ? null : await ctx.trust.loadApprovalModel();
