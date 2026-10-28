@@ -28,9 +28,9 @@ import type {
 } from "@rakazo/adapters";
 import {
   applyMessagingOutboundStatus,
+  bindSharedWorkspaceMembership,
   ChatSdkMessagingSurface,
   CodexCatalogCache,
-  bindSharedWorkspaceMembership,
   ComposioConnector,
   contentKeyProviderFromEnv,
   createAgentHomeStore,

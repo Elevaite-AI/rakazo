@@ -1,5 +1,5 @@
+import { chmod, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
-import { mkdtemp, writeFile, chmod, rm } from "node:fs/promises";
 import type { PrismaClient } from "@rakazo/db";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
@@ -7,6 +7,7 @@ import {
   loadSharedWorkspaceAccess,
   SharedWorkspaceDecisionAccess,
 } from "./shared-workspace-access.js";
+
 const token = "a".repeat(64);
 const grant = {
   executionUserId: "service",
@@ -29,7 +30,7 @@ describe("shared workspace deployment access", () => {
   it("requires a private valid configured file and never falls back from a missing one", async () => {
     expect(await loadSharedWorkspaceAccess({})).toBeUndefined();
     const dir = await directory(),
-      file = dir + "/client.json";
+      file = `${dir}/client.json`;
     const source = { RAKAZO_SHARED_WORKSPACE_CONFIG: file };
     await expect(loadSharedWorkspaceAccess(source)).rejects.toThrow();
     await writeFile(
@@ -54,7 +55,7 @@ describe("shared workspace deployment access", () => {
   });
   it("uses only the configured Unix socket and observes fresh revocation without TCP fallback", async () => {
     const dir = await directory(),
-      socket = dir + "/decision.sock";
+      socket = `${dir}/decision.sock`;
     let allowed = true,
       requests = 0;
     const server = createServer(async (req, res) => {

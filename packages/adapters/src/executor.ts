@@ -1,4 +1,3 @@
-import { GOVERNED_MEMORY_TOOL_NAMES } from "./governed-memory-tools.js";
 import type { AgentRunRequest, SemanticMemoryProvider } from "@rakazo/adapter-kit";
 import { DEFAULT_CONTEXT_STRATEGY, runContinueJob } from "@rakazo/adapter-kit";
 import type { MessageBlock, ModelRoleChoice, RunStatus } from "@rakazo/contracts";
@@ -77,6 +76,7 @@ import { formatCurrentTimeInstruction } from "./current-time.js";
 import { resolveDeploymentModel } from "./deployment-model.js";
 import type { ExecutorDeps } from "./executor-deps.js";
 import type { FleetRun } from "./fleet-tools.js";
+import { GOVERNED_MEMORY_TOOL_NAMES } from "./governed-memory-tools.js";
 import { loadBotGroupDirectory, loadGroupContext } from "./group-handoff.js";
 import {
   formatCompactedSummary,
@@ -226,7 +226,13 @@ export function createRunExecutor(deps: ExecutorDeps) {
       const sharedSource = run.sourceMessageId
         ? await deps.prisma.message.findUnique({
             where: { id: run.sourceMessageId },
-            select: { clientNonce: true, blocks: true, role: true, threadId: true, createdAt: true },
+            select: {
+              clientNonce: true,
+              blocks: true,
+              role: true,
+              threadId: true,
+              createdAt: true,
+            },
           })
         : null;
       const sharedBlocks =

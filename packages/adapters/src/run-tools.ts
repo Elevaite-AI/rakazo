@@ -1,4 +1,3 @@
-import { governedMemoryTools } from "./run-tools-governed-memory.js";
 import type { AgentToolExecutionObserver } from "@rakazo/adapter-kit";
 import { toolResultTaintsRun } from "@rakazo/core";
 import { IMAGE_RETURNING_COMPUTER_TOOLS, MODEL_CANNOT_SEE_MESSAGE } from "./model-vision.js";
@@ -11,6 +10,7 @@ import { PAGE_BROWSER_TOOL_NAMES } from "./run-tool-selection.js";
 import { computerTools, pageBrowserTool } from "./run-tools-computer.js";
 import { fileTools } from "./run-tools-files.js";
 import { fleetTools } from "./run-tools-fleet.js";
+import { governedMemoryTools } from "./run-tools-governed-memory.js";
 import { cloudAgentTool, connectorTool, integrationTools } from "./run-tools-integrations.js";
 import { memoryTools } from "./run-tools-memory.js";
 import { messagingTools } from "./run-tools-messaging.js";

@@ -1,10 +1,3 @@
-import {
-  currentDecisionSnapshot,
-  decisionAudience,
-  GOVERNED_MEMORY_TOOL_NAMES,
-  GOVERNED_MEMORY_WRITE_TOOL_NAMES,
-  parseGovernedMemoryArgs,
-} from "./governed-memory-tools.js";
 import type { ConnectorCall, ConnectorTool } from "@rakazo/adapter-kit";
 import { redactSecrets } from "@rakazo/core";
 import { reserveInstructionProposal, validateInstructionProposal } from "@rakazo/db";
@@ -26,6 +19,13 @@ import {
 import { validCloudAgentArgs } from "./cloud-agent-tools.js";
 import { sanitizeConnectorError } from "./connector-safety.js";
 import { isFleetApprovalTool, prepareFleetRequest } from "./fleet-tools.js";
+import {
+  currentDecisionSnapshot,
+  decisionAudience,
+  GOVERNED_MEMORY_TOOL_NAMES,
+  GOVERNED_MEMORY_WRITE_TOOL_NAMES,
+  parseGovernedMemoryArgs,
+} from "./governed-memory-tools.js";
 import { assertConnectorToolArgs, CATALOG_EXECUTE } from "./lazy-tool-catalog.js";
 import type { RunContext } from "./run-context.js";
 import {

@@ -1,5 +1,3 @@
-import { callDecisionMemory } from "./run-tools-governed-memory.js";
-import { GOVERNED_MEMORY_WRITE_TOOL_NAMES } from "./governed-memory-tools.js";
 import type {
   AdapterContext,
   AgentToolExecutionObserver,
@@ -45,6 +43,7 @@ import {
 } from "./auto-review.js";
 import { reviewWithBackups } from "./auto-review-backups.js";
 import type { ExecutorDeps } from "./executor-deps.js";
+import { GOVERNED_MEMORY_WRITE_TOOL_NAMES } from "./governed-memory-tools.js";
 import { findConnectedModelCredential } from "./model-selection.js";
 import { autoReviewCheckerProvider } from "./run-auto-review.js";
 import type { RunContext, RunTrust } from "./run-context.js";
@@ -62,6 +61,7 @@ import { resolveCompletedSecretLeftover } from "./run-secret.js";
 import type { ToolRequest } from "./run-tool-request.js";
 import { BUILTIN_AGENT_TOOL_NAMES, READ_ONLY_AGENT_TOOLS } from "./run-tool-selection.js";
 import { callMediaTool } from "./run-tools-files.js";
+import { callDecisionMemory } from "./run-tools-governed-memory.js";
 import { USER_COMPUTER_SHELL_TOOL, userComputerGate } from "./run-tools-user-computer.js";
 import { connectorTrustKeys } from "./run-trust.js";
 import { commandWatchFromTool } from "./schedule-tools.js";

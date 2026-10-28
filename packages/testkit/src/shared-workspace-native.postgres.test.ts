@@ -275,8 +275,9 @@ describe.runIf(enabled)("native shared workspace with staged ORB grants", () => 
         missing.executor.continueRun(background.id, "missing-authority-background"),
       );
       await system(async () => {
-        expect((await handles.prisma.run.findUniqueOrThrow({ where: { id: background.id } })).status)
-          .toBe("cancelled");
+        expect(
+          (await handles.prisma.run.findUniqueOrThrow({ where: { id: background.id } })).status,
+        ).toBe("cancelled");
         expect(await handles.prisma.attempt.count({ where: { runId: background.id } })).toBe(0);
       });
       await system(async () => {

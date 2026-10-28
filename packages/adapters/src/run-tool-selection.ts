@@ -1,4 +1,3 @@
-import { GOVERNED_MEMORY_TOOL_NAMES } from "./governed-memory-tools.js";
 import {
   disabledBuiltinToolSet,
   FLEET_TOOL_NAMES,
@@ -7,6 +6,7 @@ import {
 import { isBackgroundRunTrigger, isOwnerStartedRun } from "@rakazo/core";
 import { builtinAgentTools } from "./builtin-tools.js";
 import { selectCloudAgentTools } from "./cloud-agent-tools-select.js";
+import { GOVERNED_MEMORY_TOOL_NAMES } from "./governed-memory-tools.js";
 import { selectMemoryTools } from "./memory-tools.js";
 import { filterImageReturningComputerTools } from "./model-vision.js";
 import { filterBuiltinToolsForRun, filterBuiltinToolsForThread } from "./schedule-tools.js";

@@ -1,5 +1,5 @@
-import { loadSharedWorkspaceAccess } from "@rakazo/adapters";
 import type { Socket } from "node:net";
+import { loadSharedWorkspaceAccess } from "@rakazo/adapters";
 import { loadRootEnv } from "@rakazo/core/node/load-root-env";
 
 loadRootEnv();

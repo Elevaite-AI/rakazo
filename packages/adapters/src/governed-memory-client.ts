@@ -5,9 +5,9 @@ import type {
   GovernedMemoryOperation,
   GovernedMemoryProvider,
 } from "@rakazo/adapter-kit";
+import { isPrivateNetworkHost } from "@rakazo/contracts";
 import { cancelResponseBody, readBoundedJsonResponse } from "@rakazo/core";
 import { secureFetch, validateUrl } from "./mcp-transport.js";
-import { isPrivateNetworkHost } from "@rakazo/contracts";
 import type { RemoteTransportDependencies } from "./remote-mcp.js";
 
 const MAX_RESPONSE_BYTES = 1024 * 1024;

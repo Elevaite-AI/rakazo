@@ -1,8 +1,8 @@
-import type { PrismaClient } from "@rakazo/db";
-import { readFile, lstat } from "node:fs/promises";
-import { isAbsolute } from "node:path";
+import { lstat, readFile } from "node:fs/promises";
 import { request } from "node:http";
+import { isAbsolute } from "node:path";
 import type { SharedWorkspaceAccess, SharedWorkspaceGrant } from "@rakazo/contracts";
+import type { PrismaClient } from "@rakazo/db";
 
 /** The native application has an HTTP decision token, never an ORB database login. */
 export class SharedWorkspaceDecisionAccess implements SharedWorkspaceAccess {
@@ -140,7 +140,7 @@ export async function loadSharedWorkspaceAccess(
   });
   if (!info.isFile() || info.uid !== process.getuid() || info.mode & 0o077)
     throw new Error("Private application-owned shared workspace config required");
-  let config;
+  let config: unknown;
   try {
     config = JSON.parse(await readFile(filename, "utf8"));
   } catch {
@@ -151,6 +151,12 @@ export async function loadSharedWorkspaceAccess(
     typeof config !== "object" ||
     Array.isArray(config) ||
     Object.keys(config).some((key) => !["url", "token", "spaces", "socketPath"].includes(key)) ||
+    !("url" in config) ||
+    typeof config.url !== "string" ||
+    !("token" in config) ||
+    typeof config.token !== "string" ||
+    ("socketPath" in config && typeof config.socketPath !== "string") ||
+    !("spaces" in config) ||
     !Array.isArray(config.spaces) ||
     config.spaces.length !== 1 ||
     config.spaces.some(
@@ -162,7 +168,7 @@ export async function loadSharedWorkspaceAccess(
     config.url,
     config.token,
     new Set(config.spaces),
-    config.socketPath,
+    "socketPath" in config ? (config.socketPath as string) : undefined,
   );
 }
 
