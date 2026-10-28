@@ -65,6 +65,38 @@ describe("shared bot access roster", () => {
     await expect(client.spaces.accessMembers({ botId: "team-bot" })).rejects.toThrow();
   });
 
+  it("removes a revoked account on the next read", async () => {
+    const { client, resolve } = setup();
+    await expect(client.spaces.accessMembers({ botId: "team-bot" })).resolves.toHaveLength(2);
+    const initialResolve = resolve.getMockImplementation();
+    expect(initialResolve).toBeDefined();
+    resolve.mockImplementation((subject, spaceId) =>
+      subject === "casey" ? Promise.resolve(null) : initialResolve!(subject, spaceId),
+    );
+    await expect(client.spaces.accessMembers({ botId: "team-bot" })).resolves.toEqual([
+      { id: "alex", name: "Alex", canApprove: false },
+    ]);
+  });
+
+  it("shows distinct authorised logins even when they belong to one person", async () => {
+    const { client, findMany, resolve } = setup();
+    findMany.mockResolvedValueOnce([
+      { userId: "alex", member: { user: { name: "Alex primary" } } },
+      { userId: "alex-alt", member: { user: { name: "Alex alternate" } } },
+      { userId: "casey", member: { user: { name: "Casey" } } },
+    ]);
+    const initialResolve = resolve.getMockImplementation();
+    expect(initialResolve).toBeDefined();
+    resolve.mockImplementation((subject, spaceId) =>
+      subject === "alex-alt" ? initialResolve!("alex", spaceId) : initialResolve!(subject, spaceId),
+    );
+    await expect(client.spaces.accessMembers({ botId: "team-bot" })).resolves.toEqual([
+      { id: "alex", name: "Alex primary", canApprove: false },
+      { id: "alex-alt", name: "Alex alternate", canApprove: false },
+      { id: "casey", name: "Casey", canApprove: true },
+    ]);
+  });
+
   it("rejects personal contexts and bots outside the current grant", async () => {
     const { deps, findMany } = setup();
     const personal = createRouterClient(createRouter(deps), {

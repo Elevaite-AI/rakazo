@@ -33,11 +33,13 @@ test("conversation-only workspace uses the native sidebar at full and icon width
   await expect(teamSettings).toBeVisible();
   await expect(teamSettings.getByTestId("team-access-list")).toContainText("Alex");
   await expect(teamSettings.getByTestId("team-access-list")).toContainText("Casey");
+  await expect(teamSettings.getByRole("button")).toHaveCount(1);
   await captureScreenshot(page, testInfo, "shared-team-settings-desktop");
   await page.keyboard.press("Escape");
   accessMembers = [{ id: "member-one", name: "Alex", canApprove: true }];
   await page.getByTestId("team-access-members").click();
   await expect(teamSettings.getByTestId("team-access-list")).not.toContainText("Casey");
+  await expect(page.getByTestId("team-access-members").locator("[title]")).toHaveCount(1);
   await page.keyboard.press("Escape");
   await captureScreenshot(page, testInfo, "shared-sidebar-expanded");
 
