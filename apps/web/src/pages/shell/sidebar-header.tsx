@@ -62,16 +62,6 @@ export function SidebarHeader({
 }) {
   const { t } = useLingui();
   const conversationOnly = useConversationOnly();
-  if (conversationOnly)
-    return (
-      <Button
-        variant="ghost"
-        aria-label={t`Minimize bots`}
-        onClick={() => setBotsSidebarCollapsedPref(!mini)}
-      >
-        <PanelLeftClose size={18} />
-      </Button>
-    );
   const hasWindowChrome = Boolean(desktopBridge());
   const toggleLabel = mini ? t`Show bots` : t`Minimize bots`;
   return (
@@ -80,7 +70,7 @@ export function SidebarHeader({
     >
       {!mini || hasWindowChrome ? <WindowChrome /> : null}
       <div className={`relative flex items-center ${mini ? "flex-col gap-0.5" : "gap-2.5"}`}>
-        {onSearch ? (
+        {!conversationOnly && onSearch ? (
           <IconTooltip label={t`Search`}>
             <Button
               variant="ghost"
@@ -95,28 +85,30 @@ export function SidebarHeader({
             </Button>
           </IconTooltip>
         ) : null}
-        <IconTooltip label={t`Activity`}>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label={t`Activity`}
-            aria-pressed={activityMode}
-            data-activity-mode={activityMode ? "on" : "off"}
-            onClick={toggleActivityMode}
-            className={`app-no-drag flex h-7 w-7 items-center justify-center rounded-full ${
-              activityMode
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground/70 hover:text-foreground/75"
-            }`}
-          >
-            <Bell
-              size={15}
-              strokeWidth={1.8}
-              fill={activityMode ? "currentColor" : "none"}
-              aria-hidden="true"
-            />
-          </Button>
-        </IconTooltip>
+        {!conversationOnly ? (
+          <IconTooltip label={t`Activity`}>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label={t`Activity`}
+              aria-pressed={activityMode}
+              data-activity-mode={activityMode ? "on" : "off"}
+              onClick={toggleActivityMode}
+              className={`app-no-drag flex h-7 w-7 items-center justify-center rounded-full ${
+                activityMode
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground/70 hover:text-foreground/75"
+              }`}
+            >
+              <Bell
+                size={15}
+                strokeWidth={1.8}
+                fill={activityMode ? "currentColor" : "none"}
+                aria-hidden="true"
+              />
+            </Button>
+          </IconTooltip>
+        ) : null}
         <IconTooltip label={toggleLabel}>
           <Button
             variant="ghost"
@@ -133,48 +125,50 @@ export function SidebarHeader({
             )}
           </Button>
         </IconTooltip>
-        <Popover open={createMenuOpen} onOpenChange={setCreateMenuOpen}>
-          <IconTooltip label={t`Create`}>
-            <PopoverTrigger
-              className="app-no-drag flex size-7 items-center justify-center rounded-full text-muted-foreground/70 outline-none hover:text-foreground/75 focus-visible:ring-2 focus-visible:ring-ring"
-              aria-label={t`Create`}
-              data-testid="create-menu-trigger"
-            >
-              <Plus size={15} strokeWidth={1.8} aria-hidden="true" />
-            </PopoverTrigger>
-          </IconTooltip>
-          {/* Unmount with the state change so the panel it opens never coexists with the menu. */}
-          {createMenuOpen ? (
-            <PopoverContent
-              align="end"
-              className="app-no-drag w-auto gap-0 overflow-hidden p-0 data-closed:animate-none"
-            >
-              <BotCreatePicker
-                bots={bots}
-                onCreateBot={() => {
-                  setCreateMenuOpen(false);
-                  setMobileSidebarOpen(false);
-                  setCreateBotOpen(true);
-                }}
-                onOpenBot={(id) => {
-                  setCreateMenuOpen(false);
-                  setMobileSidebarOpen(false);
-                  navigate(`/app/${id}`);
-                }}
-                onCreateGroup={() => {
-                  setCreateMenuOpen(false);
-                  setMobileSidebarOpen(false);
-                  setPanel("create-group");
-                }}
-                onCreateSpace={() => {
-                  setCreateMenuOpen(false);
-                  setMobileSidebarOpen(false);
-                  setNewSpaceOpen(true);
-                }}
-              />
-            </PopoverContent>
-          ) : null}
-        </Popover>
+        {!conversationOnly ? (
+          <Popover open={createMenuOpen} onOpenChange={setCreateMenuOpen}>
+            <IconTooltip label={t`Create`}>
+              <PopoverTrigger
+                className="app-no-drag flex size-7 items-center justify-center rounded-full text-muted-foreground/70 outline-none hover:text-foreground/75 focus-visible:ring-2 focus-visible:ring-ring"
+                aria-label={t`Create`}
+                data-testid="create-menu-trigger"
+              >
+                <Plus size={15} strokeWidth={1.8} aria-hidden="true" />
+              </PopoverTrigger>
+            </IconTooltip>
+            {/* Unmount with the state change so the panel it opens never coexists with the menu. */}
+            {createMenuOpen ? (
+              <PopoverContent
+                align="end"
+                className="app-no-drag w-auto gap-0 overflow-hidden p-0 data-closed:animate-none"
+              >
+                <BotCreatePicker
+                  bots={bots}
+                  onCreateBot={() => {
+                    setCreateMenuOpen(false);
+                    setMobileSidebarOpen(false);
+                    setCreateBotOpen(true);
+                  }}
+                  onOpenBot={(id) => {
+                    setCreateMenuOpen(false);
+                    setMobileSidebarOpen(false);
+                    navigate(`/app/${id}`);
+                  }}
+                  onCreateGroup={() => {
+                    setCreateMenuOpen(false);
+                    setMobileSidebarOpen(false);
+                    setPanel("create-group");
+                  }}
+                  onCreateSpace={() => {
+                    setCreateMenuOpen(false);
+                    setMobileSidebarOpen(false);
+                    setNewSpaceOpen(true);
+                  }}
+                />
+              </PopoverContent>
+            ) : null}
+          </Popover>
+        ) : null}
       </div>
     </div>
   );

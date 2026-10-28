@@ -93,31 +93,6 @@ export function SidebarRoster({
 }) {
   const { t } = useLingui();
   const conversationOnly = useConversationOnly();
-  if (conversationOnly)
-    return (
-      <>
-        {sidebarGroups.map((group) => (
-          <div key={group.key}>
-            <div className="px-3 py-2 text-xs font-semibold">{group.spaceName}</div>
-            {group.bots.map((item) => (
-              <Button
-                key={item.chat.id}
-                variant="ghost"
-                className="w-full justify-start"
-                onClick={() =>
-                  openSpaceChat(
-                    group.spaceId,
-                    item.kind === "bot" ? `/app/${item.chat.id}` : `/app/g/${item.chat.id}`,
-                  )
-                }
-              >
-                {item.chat.name}
-              </Button>
-            ))}
-          </div>
-        ))}
-      </>
-    );
 
   return (
     <>
@@ -126,8 +101,9 @@ export function SidebarRoster({
         const groupBotIds = group.bots.flatMap((item) =>
           item.kind === "bot" ? [item.chat.id] : [],
         );
-        const hasSpaceActions = group.canOpenSpaceSettings;
+        const hasSpaceActions = !conversationOnly && group.canOpenSpaceSettings;
         const headerDropTarget: RosterDropTarget | null =
+          !conversationOnly &&
           group.spaceId === bootstrapMe?.spaceId &&
           !group.emptySpaceId &&
           (group.sectionId || group.key.endsWith("unassigned"))
@@ -178,7 +154,7 @@ export function SidebarRoster({
                 {group.title ? (
                   // Prefer the section menu over the space menu when both apply;
                   // the dedicated space-actions button still opens the space menu.
-                  <ContextMenu disabled={!section}>
+                  <ContextMenu disabled={conversationOnly || !section}>
                     <ContextMenuTrigger
                       render={
                         group.emptySpaceId ? <button type="button" /> : <CollapsibleTrigger />
@@ -190,7 +166,7 @@ export function SidebarRoster({
                         }
                       }}
                       onContextMenu={
-                        section
+                        !conversationOnly && section
                           ? (event) => event.currentTarget.focus()
                           : hasSpaceActions
                             ? (event) => {
@@ -235,7 +211,7 @@ export function SidebarRoster({
                         />
                       )}
                     </ContextMenuTrigger>
-                    {section ? (
+                    {!conversationOnly && section ? (
                       <ContextMenuContent
                         aria-label={t`Actions for ${section.name}`}
                         className="w-[220px]"
@@ -311,7 +287,7 @@ export function SidebarRoster({
                       : item.chat.preview ||
                         item.chat.members.map((member) => member.name).join(", ")));
                 const rowDropTarget: RosterDropTarget | null =
-                  item.chat.spaceId !== bootstrapMe?.spaceId
+                  conversationOnly || item.chat.spaceId !== bootstrapMe?.spaceId
                     ? null
                     : item.kind === "bot"
                       ? { kind: "bot", chat: item.chat }
@@ -346,7 +322,7 @@ export function SidebarRoster({
                 const chatTrigger = (
                   <ContextMenuTrigger
                     render={<button type="button" />}
-                    draggable={item.kind === "bot"}
+                    draggable={!conversationOnly && item.kind === "bot"}
                     data-roster-bot-id={item.kind === "bot" ? item.chat.id : undefined}
                     data-roster-unread={item.chat.unread ? "true" : undefined}
                     data-roster-error={rowError && (compact || mini) ? "true" : undefined}
@@ -365,10 +341,12 @@ export function SidebarRoster({
                         : undefined
                     }
                     aria-keyshortcuts={
-                      item.kind === "bot" ? "Alt+ArrowUp Alt+ArrowDown" : undefined
+                      !conversationOnly && item.kind === "bot"
+                        ? "Alt+ArrowUp Alt+ArrowDown"
+                        : undefined
                     }
                     onDragStart={(event) => {
-                      if (item.kind !== "bot") return;
+                      if (conversationOnly || item.kind !== "bot") return;
                       setDraggedBotId(item.chat.id);
                       event.dataTransfer.effectAllowed = "move";
                       event.dataTransfer.setData("text/plain", item.chat.id);
@@ -394,6 +372,7 @@ export function SidebarRoster({
                     data-roster-drop={rosterDropKey === rowDropKey ? "true" : undefined}
                     onKeyDown={(event) => {
                       if (
+                        conversationOnly ||
                         item.kind !== "bot" ||
                         !event.altKey ||
                         (event.key !== "ArrowUp" && event.key !== "ArrowDown")
@@ -421,7 +400,9 @@ export function SidebarRoster({
                           ? "w-full min-h-11 gap-2 rounded-xl px-2.5 py-1.5"
                           : "w-full gap-3 rounded-xl px-2.5 py-[10px]"
                     } text-start ${
-                      item.kind === "bot" ? "cursor-grab active:cursor-grabbing" : ""
+                      !conversationOnly && item.kind === "bot"
+                        ? "cursor-grab active:cursor-grabbing"
+                        : ""
                     } ${
                       selected || rosterDropKey === rowDropKey
                         ? "bg-sidebar-accent"
@@ -559,7 +540,7 @@ export function SidebarRoster({
                     }}
                   >
                     <ContextMenu
-                      disabled={item.chat.spaceId !== bootstrapMe?.spaceId}
+                      disabled={conversationOnly || item.chat.spaceId !== bootstrapMe?.spaceId}
                       open={botMenu?.kind === item.kind && botMenu.id === item.chat.id}
                       // A sibling row's menu may already own the state; only clear our own.
                       onOpenChange={(open) =>
@@ -586,7 +567,9 @@ export function SidebarRoster({
                       ) : (
                         chatTrigger
                       )}
-                      {botMenu?.kind === item.kind && botMenu.id === item.chat.id ? (
+                      {!conversationOnly &&
+                      botMenu?.kind === item.kind &&
+                      botMenu.id === item.chat.id ? (
                         <Suspense fallback={null}>{botMenuContent}</Suspense>
                       ) : null}
                     </ContextMenu>
