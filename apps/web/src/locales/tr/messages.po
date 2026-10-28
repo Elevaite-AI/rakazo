@@ -1588,6 +1588,7 @@ msgstr "Bağlam sınırı"
 #: src/pages/Auth.tsx
 #: src/pages/Onboarding.tsx
 #: src/pages/shell/agent-import.tsx
+#: src/pages/shell/message-view.tsx
 msgid "Continue"
 msgstr "Devam"
 
@@ -6061,6 +6062,10 @@ msgstr "ChatGPT veya Claude aboneliğinle çalışır."
 
 #: src/pages/memory-providers/HonchoSettingsForm.tsx
 msgid "Workspace"
+msgstr ""
+
+#: src/pages/shell/message-view.tsx
+msgid "Workspace approver required"
 msgstr ""
 
 #: src/lib/billing.ts

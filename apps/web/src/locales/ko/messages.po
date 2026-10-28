@@ -1588,6 +1588,7 @@ msgstr "컨텍스트 한도"
 #: src/pages/Auth.tsx
 #: src/pages/Onboarding.tsx
 #: src/pages/shell/agent-import.tsx
+#: src/pages/shell/message-view.tsx
 msgid "Continue"
 msgstr "계속"
 
@@ -6061,6 +6062,10 @@ msgstr "ChatGPT 또는 Claude 요금제로 사용할 수 있습니다."
 
 #: src/pages/memory-providers/HonchoSettingsForm.tsx
 msgid "Workspace"
+msgstr ""
+
+#: src/pages/shell/message-view.tsx
+msgid "Workspace approver required"
 msgstr ""
 
 #: src/lib/billing.ts
