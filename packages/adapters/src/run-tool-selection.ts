@@ -1,3 +1,4 @@
+import { GOVERNED_MEMORY_TOOL_NAMES } from "./governed-memory-tools.js";
 import {
   disabledBuiltinToolSet,
   FLEET_TOOL_NAMES,
@@ -21,6 +22,9 @@ export const READ_ONLY_AGENT_TOOLS = new Set([
   "run_subagent",
   "task_catalog",
   "recall_memory",
+  "recall_decisions",
+  "decision_history",
+  "memory_status",
   "schedule_list",
   "scratchpad_list",
   "board_tickets",
@@ -57,6 +61,7 @@ export function selectBuiltinToolsForRun(options: {
   groupId: string | null;
   trigger: string;
   semanticMemoryEnabled: boolean;
+  governedMemoryEnabled?: boolean;
   /** The configured provider can forget individual facts. */
   semanticMemoryForgets?: boolean;
   cloudAgentEnabled?: boolean;
@@ -95,6 +100,10 @@ export function selectBuiltinToolsForRun(options: {
   ).filter(
     (tool) =>
       !disabled.has(tool.name) &&
+      ((Boolean(options.governedMemoryEnabled) &&
+        !options.groupId &&
+        !options.messagingChannelRun) ||
+        !GOVERNED_MEMORY_TOOL_NAMES.has(tool.name)) &&
       (options.trigger !== "created" || CREATED_RUN_TOOL_NAMES.has(tool.name)) &&
       (!FLEET_TOOL_NAMES_SET.has(tool.name) ||
         (Boolean(options.fleetManagement) && fleetToolsAllowed)) &&
@@ -128,6 +137,9 @@ export function selectBuiltinToolsForRun(options: {
           "save_shared_memory",
           "save_memory",
           "recall_memory",
+          "recall_decisions",
+          "decision_history",
+          "memory_status",
           "forget_memory",
           "task_catalog",
           "board_tickets",

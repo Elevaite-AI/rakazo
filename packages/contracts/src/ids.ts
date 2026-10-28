@@ -9,6 +9,14 @@ export const ActorSchema = z.object({
   email: z.string().email(),
   /** Deprecated wire field. App accounts have no deployment role; always false. */
   isDeploymentOwner: z.boolean(),
+  /** Persisted server-side classification; absent authority must fail closed. */
+  sharedWorkspaceRequired: z.boolean().optional(),
+  /** Authenticated human, when userId is an explicitly authorised team execution identity. */
+  requesterUserId: Id.optional(),
+  sharedGrantRevision: z.string().optional(),
+  sharedBotIds: z.array(Id).optional(),
+  sharedCanSend: z.boolean().optional(),
+  sharedApprovalRevision: z.string().optional(),
 });
 export type Actor = z.infer<typeof ActorSchema>;
 

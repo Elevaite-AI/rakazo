@@ -15,6 +15,7 @@ import { Copy, MessageSquareDot, MoreHorizontal, Reply, Smile } from "lucide-rea
 import { useState } from "react";
 import { MessageHoverMetadata } from "../../components/MessageHoverMetadata";
 import { copyableMessageText } from "../../lib/message-text";
+import { useConversationOnly } from "../../lib/workspace-capabilities";
 
 export function MessageHoverActions({
   message,
@@ -32,11 +33,12 @@ export function MessageHoverActions({
   onReact: (message: ThreadMessage, reaction: MessageReaction) => Promise<void>;
 }) {
   const { t } = useLingui();
+  const conversationOnly = useConversationOnly();
   const [moreOpen, setMoreOpen] = useState(false);
   const [reactionsOpen, setReactionsOpen] = useState(false);
 
   // Streaming progress bubbles keep hover free for selection / stop clicks.
-  if (message.id.startsWith("progress:")) return null;
+  if (conversationOnly || message.id.startsWith("progress:")) return null;
 
   function copyMessage() {
     const text = copyableMessageText(message);

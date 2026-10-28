@@ -307,6 +307,7 @@ export function userTurnInstructions(parts: {
   computerInstruction: string;
   pageBrowserAllowed: boolean;
   taskCatalogInstruction?: string;
+  governedMemoryInstruction?: string;
   workspaceInstruction: string;
   agentEnvironmentInstruction: string | undefined;
   botDirectory: string | undefined;
@@ -328,6 +329,7 @@ export function userTurnInstructions(parts: {
       : undefined,
     toolUsageLine(parts),
     parts.taskCatalogInstruction,
+    parts.governedMemoryInstruction,
     parts.workspaceInstruction,
     parts.agentEnvironmentInstruction,
     "A bot and a subagent are different. Never use both for the same request.",

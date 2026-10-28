@@ -171,6 +171,7 @@ export interface RunComputerContext {
 
 /** Facts about who started the run and where it replies. */
 export interface RunSource {
+  sourceMessage?: { role: string; blocks: unknown; threadId: string; createdAt: Date };
   ownerStartedRun: boolean;
   messagingChannelRun: boolean;
   channelId: string | undefined;

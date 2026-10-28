@@ -16,6 +16,22 @@ export class BotSectionNameConflictError extends Error {
   }
 }
 
+/** Organisation metadata is administered server-side; generic org routes are disabled. */
+export function requiresSharedWorkspaceAuthority(metadata?: string | null): boolean {
+  if (!metadata) return false;
+  let value: unknown;
+  try {
+    value = JSON.parse(metadata);
+  } catch {
+    throw new IsolationError();
+  }
+  if (value === null) return false;
+  if (typeof value !== "object" || Array.isArray(value)) return false;
+  if (!("sharedWorkspaceAuthority" in value)) return false;
+  if (value.sharedWorkspaceAuthority !== "external") throw new IsolationError();
+  return true;
+}
+
 export async function requireMembership(
   prisma: PrismaClient,
   userId: string,
@@ -31,6 +47,7 @@ export async function requireMembership(
       userId: true,
       spaceId: true,
       member: { select: { user: { select: { email: true } } } },
+      space: { select: { organization: { select: { metadata: true } } } },
     },
   });
   if (!membership) {
@@ -41,6 +58,9 @@ export async function requireMembership(
     spaceId: membership.spaceId,
     email: membership.member.user.email,
     isDeploymentOwner: false,
+    ...(requiresSharedWorkspaceAuthority(membership.space?.organization?.metadata)
+      ? { sharedWorkspaceRequired: true }
+      : {}),
   };
 }
 

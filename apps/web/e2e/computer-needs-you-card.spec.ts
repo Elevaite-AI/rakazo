@@ -21,7 +21,7 @@ test("needs-you computer card opens a group member bot computer", async ({ page 
   });
 
   await mockGroupComputerCard(page, group.id, writerId);
-  await mockMemberComputerRpcs(page, writerId);
+  const takeoverRequests = await mockMemberComputerRpcs(page, writerId);
 
   await page.goto(`/app/g/${group.id}`);
   await expect(page.getByRole("combobox", { name: /Message Needs you team/ })).toBeVisible();
@@ -32,10 +32,11 @@ test("needs-you computer card opens a group member bot computer", async ({ page 
   await expect(card.getByText("Needs you", { exact: true })).toBeVisible();
   const open = card.getByTestId("computer-card-open");
   await expect(open).toBeVisible();
-  await expect(open).toHaveText("Open");
+  await expect(open).toHaveText("Continue");
   await captureScreenshot(page, testInfo, "computer-needs-you-card-group");
 
   await open.click();
+  await expect.poll(takeoverRequests).toBe(1);
   await expect(page).toHaveURL(new RegExp(`/app/g/${group.id}`));
   await expect(page.getByRole("button", { name: "Close computer" })).toBeVisible();
   await expect(page.getByTestId("computer-viewport")).toBeVisible();
@@ -108,6 +109,7 @@ async function mockGroupComputerCard(page: Page, groupId: string, botId: string)
 }
 
 async function mockMemberComputerRpcs(page: Page, botId: string) {
+  let takeoverRequests = 0;
   const status = {
     botId,
     mode: "team",
@@ -135,6 +137,7 @@ async function mockMemberComputerRpcs(page: Page, botId: string) {
     await fulfillForBot(route, computerJson);
   });
   await page.route("**/rpc/computer/takeover", async (route) => {
+    takeoverRequests += 1;
     await fulfillForBot(
       route,
       JSON.stringify({
@@ -151,4 +154,5 @@ async function mockMemberComputerRpcs(page: Page, botId: string) {
   await page.route("**/rpc/computer/heartbeat", async (route) => {
     await fulfillForBot(route, JSON.stringify({ json: { ok: true } }));
   });
+  return () => takeoverRequests;
 }

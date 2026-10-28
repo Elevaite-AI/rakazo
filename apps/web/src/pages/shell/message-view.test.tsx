@@ -5,6 +5,7 @@ import { act } from "react";
 import type { Root } from "react-dom/client";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { ConversationOnlyContext, SharedApproverContext } from "../../lib/workspace-capabilities";
 import { MessageView } from "./message-view";
 
 const skills = vi.hoisted(() => ({
@@ -56,6 +57,7 @@ function renderMessage(
   blocks: ThreadMessage["blocks"],
   peerBot: PeerBot,
   mentions?: ReturnType<typeof planner>[],
+  approval?: { shared: boolean; approver: boolean },
 ) {
   const onOpenBot = vi.fn();
   const message: ThreadMessage = {
@@ -68,33 +70,37 @@ function renderMessage(
   };
   act(() =>
     root.render(
-      <MessageView
-        artifactTarget={{ botId: "parent" }}
-        canAnswer={false}
-        canDismiss={false}
-        message={message}
-        mentions={mentions}
-        onAnswer={vi.fn()}
-        onOpenBot={onOpenBot}
-        onOpenPeerMessages={vi.fn()}
-        onTogglePeerReplies={vi.fn()}
-        peerBot={peerBot}
-        onRefresh={vi.fn()}
-        onBotChanged={vi.fn()}
-        onAddRoutine={vi.fn()}
-        voiceReady={false}
-        speaking={false}
-        onSpeak={vi.fn()}
-        onOpenComputer={vi.fn()}
-        showToolActivity={false}
-        onReply={vi.fn()}
-        onMarkUnread={vi.fn()}
-        onReact={vi.fn()}
-      />,
+      <ConversationOnlyContext.Provider value={approval?.shared ?? false}>
+        <SharedApproverContext.Provider value={approval?.approver ?? false}>
+          <MessageView
+            artifactTarget={{ botId: "parent" }}
+            canAnswer={Boolean(approval)}
+            canDismiss={false}
+            message={message}
+            mentions={mentions}
+            onAnswer={vi.fn()}
+            onOpenBot={onOpenBot}
+            onOpenPeerMessages={vi.fn()}
+            onTogglePeerReplies={vi.fn()}
+            peerBot={peerBot}
+            onRefresh={vi.fn()}
+            onBotChanged={vi.fn()}
+            onAddRoutine={vi.fn()}
+            voiceReady={false}
+            speaking={false}
+            onSpeak={vi.fn()}
+            onOpenComputer={vi.fn()}
+            showToolActivity={false}
+            onReply={vi.fn()}
+            onMarkUnread={vi.fn()}
+            onReact={vi.fn()}
+          />
+        </SharedApproverContext.Provider>
+      </ConversationOnlyContext.Provider>,
     ),
   );
   const mention = container.querySelector<HTMLElement>('[data-testid="bot-mention"]')!;
-  act(() => mention.click());
+  if (mention) act(() => mention.click());
   return { mention, onOpenBot };
 }
 
@@ -232,4 +238,38 @@ it("keeps an edit made after a save when the saved status arrives late", async (
   act(() => render({ ...draft, skillId: "other", name: "Other", status: "saved" }));
   expect(input.value).toBe("Newer");
   expect(button().textContent).toBe("Saved");
+});
+
+const approvalCard: ThreadMessage["blocks"] = [
+  {
+    kind: "ask",
+    text: "Delete this fact?",
+    approvalEffectId: "effect",
+    actions: [
+      { id: "allow", label: "Allow once" },
+      { id: "deny", label: "Deny" },
+      { id: "always", label: "Always allow" },
+    ],
+  },
+];
+it("offers designated shared approvers only single-action decisions", () => {
+  renderMessage(approvalCard, missingBot, undefined, { shared: true, approver: true });
+  const labels = [...container.querySelectorAll("button")].map((b) => b.textContent);
+  expect(labels).toContain("Allow once");
+  expect(labels).toContain("Deny");
+  expect(labels).not.toContain("Always allow this tool");
+});
+it("does not offer approval controls to an ordinary shared member", () => {
+  renderMessage(approvalCard, missingBot, undefined, { shared: true, approver: false });
+  expect(
+    [...container.querySelectorAll("button")].some((b) => b.textContent === "Allow once"),
+  ).toBe(false);
+});
+it("preserves private approval controls", () => {
+  renderMessage(approvalCard, missingBot, undefined, { shared: false, approver: false });
+  expect(
+    [...container.querySelectorAll("button")].some(
+      (b) => b.textContent === "Always allow this tool",
+    ),
+  ).toBe(true);
 });

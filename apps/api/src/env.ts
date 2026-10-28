@@ -151,6 +151,10 @@ export interface AppEnv {
     | undefined;
   /** Crisp chat on the paywall, for the hosted service; self-hosted installs leave it unset. */
   crispWebsiteId?: string | null;
+  /** Optional bearer-protected API for approved external agent dispatchers. */
+  agentGatewayToken: string | undefined;
+  /** Spaces whose agents the external gateway may list and invoke. */
+  agentGatewaySpaceIds: string[];
 }
 
 export function loadEnv(source: NodeJS.ProcessEnv = process.env): AppEnv {
@@ -309,6 +313,8 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): AppEnv {
     minimumClientBuilds: parseMinimumClientBuilds(source.RAKAZO_MIN_CLIENT_BUILD),
     browserMonitoring: browserMonitoringFromEnv(source),
     crispWebsiteId: parseCrispWebsiteId(source.CRISP_WEBSITE_ID),
+    agentGatewayToken: optional(source.RAKAZO_AGENT_GATEWAY_TOKEN),
+    agentGatewaySpaceIds: list(source.RAKAZO_AGENT_GATEWAY_SPACE_IDS),
   };
 }
 

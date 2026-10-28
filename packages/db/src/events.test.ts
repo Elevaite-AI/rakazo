@@ -4552,3 +4552,116 @@ it("checks cross-space peer permission inside the message transaction before cre
   expect(tx.task.create).not.toHaveBeenCalled();
   expect(tx.run.create).not.toHaveBeenCalled();
 });
+
+describe("decision memory owner approval", () => {
+  function memoryApprovalFixture(kind: "save_decision" | "correct_decision") {
+    const tx = {
+      $queryRaw: vi.fn().mockResolvedValue([{ id: "thread-1" }]),
+      message: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: "message-1",
+          blocks: [
+            {
+              kind: "ask",
+              approvalEffectId: "effect-1",
+              text: "Approve decision?",
+              status: "pending",
+              actions: [
+                { id: "allow", label: "Approve" },
+                { id: "deny", label: "Dismiss" },
+                { id: "always", label: "Old unsafe choice" },
+              ],
+            },
+          ],
+        }),
+        update: vi.fn().mockResolvedValue({ id: "message-1" }),
+      },
+      run: {
+        findFirst: vi.fn().mockResolvedValue({
+          botId: "bot-1",
+          userId: "owner",
+          trigger: "user",
+          task: { prompt: "Save the decision" },
+        }),
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+        findUnique: vi.fn().mockResolvedValue({ status: "queued" }),
+      },
+      task: { updateMany: vi.fn() },
+      externalEffect: {
+        findFirst: vi.fn().mockResolvedValue({ id: "effect-1", kind, status: "intended" }),
+        update: vi.fn().mockResolvedValue({ id: "effect-1" }),
+      },
+      thread: { update: vi.fn().mockResolvedValue({ nextEventSeq: 10 }) },
+      event: {
+        create: vi.fn(async ({ data }: { data: { seq: number; type: string } }) => ({
+          ...event(data.seq),
+          type: data.type,
+        })),
+      },
+    };
+    const prisma = {
+      $transaction: vi.fn(async (callback: (client: typeof tx) => unknown) => callback(tx)),
+    } as unknown as PrismaClient;
+    const answer = (answeredByUserId: string, value: string) =>
+      answerRunInput(
+        prisma,
+        {
+          spaceId: "workspace-1",
+          threadId: "thread-1",
+          runId: "run-1",
+          messageId: "message-1",
+          answeredByUserId,
+          answer: value,
+        },
+        new TestFanout(),
+      );
+    return { tx, answer };
+  }
+
+  it.each(["save_decision", "correct_decision"] as const)(
+    "binds %s confirmation to the authenticated owner and effect",
+    async (kind) => {
+      const f = memoryApprovalFixture(kind);
+      await expect(f.answer("owner", "allow")).resolves.toBe(true);
+      expect(f.tx.externalEffect.update).toHaveBeenCalledWith({
+        where: { id: "effect-1" },
+        data: {
+          status: "approved",
+          result: {
+            approval: {
+              effectId: "effect-1",
+              runId: "run-1",
+              approverUserId: "owner",
+              approvedAt: expect.any(String),
+              kind: "native-owner-approval",
+            },
+          },
+        },
+      });
+    },
+  );
+
+  it.each(["save_decision", "correct_decision"] as const)(
+    "rejects another user or always-allow for %s",
+    async (kind) => {
+      for (const [user, answer] of [
+        ["other-user", "allow"],
+        ["owner", "always"],
+      ]) {
+        const f = memoryApprovalFixture(kind);
+        await expect(f.answer(user!, answer!)).resolves.toBe(false);
+        expect(f.tx.run.updateMany).not.toHaveBeenCalled();
+        expect(f.tx.externalEffect.update).not.toHaveBeenCalled();
+      }
+    },
+  );
+
+  it("rejects publication without inventing an approval proof", async () => {
+    const f = memoryApprovalFixture("save_decision");
+    await expect(f.answer("owner", "deny")).resolves.toBe(true);
+    expect(f.tx.externalEffect.update).toHaveBeenCalledWith({
+      where: { id: "effect-1" },
+      data: { status: "denied" },
+    });
+  });
+});

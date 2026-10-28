@@ -7,6 +7,16 @@ const base = {
 };
 
 describe("loadEnv", () => {
+  it("parses the optional external agent gateway settings", () => {
+    const env = loadEnv({
+      ...base,
+      RAKAZO_AGENT_GATEWAY_TOKEN: " gateway-secret ",
+      RAKAZO_AGENT_GATEWAY_SPACE_IDS: "space-1, space-2 space-1",
+    });
+    expect(env.agentGatewayToken).toBe("gateway-secret");
+    expect(env.agentGatewaySpaceIds).toEqual(["space-1", "space-2", "space-1"]);
+  });
+
   it("keeps calls off unless explicitly enabled", () => {
     expect(loadEnv(base).phoneCallsEnabled).toBe(false);
     for (const value of ["false", "1", ""]) {

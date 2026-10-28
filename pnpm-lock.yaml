@@ -1031,9 +1031,15 @@ importers:
       '@rakazo/sandbox-supervisor':
         specifier: workspace:*
         version: link:../../infra/sandboxes/supervisor
+      '@types/pg':
+        specifier: 8.23.1
+        version: 8.23.1
       '@types/pngjs':
         specifier: 6.0.5
         version: 6.0.5
+      pg:
+        specifier: 8.23.1
+        version: 8.23.1
       typescript:
         specifier: 7.0.2
         version: 7.0.2

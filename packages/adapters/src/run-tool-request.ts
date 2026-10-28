@@ -1,3 +1,10 @@
+import {
+  currentDecisionSnapshot,
+  decisionAudience,
+  GOVERNED_MEMORY_TOOL_NAMES,
+  GOVERNED_MEMORY_WRITE_TOOL_NAMES,
+  parseGovernedMemoryArgs,
+} from "./governed-memory-tools.js";
 import type { ConnectorCall, ConnectorTool } from "@rakazo/adapter-kit";
 import { redactSecrets } from "@rakazo/core";
 import { reserveInstructionProposal, validateInstructionProposal } from "@rakazo/db";
@@ -259,7 +266,7 @@ export async function prepareToolRequest(
   ctx: RunContext,
   request: ToolRequest,
 ): Promise<ToolError | undefined> {
-  const { deps, run, runId, bot } = ctx;
+  const { deps, run, runId, bot, thread } = ctx;
   const { name, executionId, nextApprovedTool } = request;
   let { args } = request;
   // Before the gate, so a run that may never reach the user's computer shows no approval card.
@@ -268,6 +275,80 @@ export async function prepareToolRequest(
       return { error: "The user's computer is not available in this run." };
     if (isSubagentToolExecution(executionId))
       return { error: "Helpers cannot use the user's computer." };
+  }
+  if (GOVERNED_MEMORY_TOOL_NAMES.has(name)) {
+    if (!deps.governedMemory) return { error: "Decision memory is not configured." };
+    if (
+      deps.sharedWorkspaceAccess?.isSharedSpace(run.spaceId) ||
+      thread.groupId ||
+      ctx.source.messagingChannelRun
+    )
+      return { error: "Use this agent’s private owner chat for decision memory." };
+    try {
+      args = parseGovernedMemoryArgs(name, args, nextApprovedTool === name);
+      if (GOVERNED_MEMORY_WRITE_TOOL_NAMES.has(name)) {
+        if (
+          isSubagentToolExecution(executionId) ||
+          !ctx.source.ownerStartedRun ||
+          ctx.source.sourceMessage?.role !== "user" ||
+          !run.sourceMessageId ||
+          ctx.source.sourceMessage.threadId !== thread.id
+        ) {
+          return {
+            error: "Decision proposals need a message from this owner in this chat.",
+          };
+        }
+        if (
+          Object.values(args).some(
+            (value) => typeof value === "string" && redactSecrets(value, ctx.secrets) !== value,
+          )
+        ) {
+          return { error: "Decision proposals cannot contain credentials." };
+        }
+        if (name === "correct_decision" && nextApprovedTool !== name) {
+          const history = await deps.governedMemory.execute(
+            "history",
+            { factId: args.factId },
+            {
+              spaceId: run.spaceId,
+              userId: run.userId,
+              agentId: bot.id,
+              agentLabel: bot.name,
+              runId,
+              threadId: thread.id,
+              sourceMessageId: run.sourceMessageId,
+              signal: ctx.context.signal,
+            },
+          );
+          args = {
+            ...args,
+            ...currentDecisionSnapshot(history, Number(args.expectedRevision)),
+          };
+        }
+        if (name === "save_decision" && nextApprovedTool !== name) {
+          const status = await deps.governedMemory.execute(
+            "status",
+            {},
+            {
+              spaceId: run.spaceId,
+              userId: run.userId,
+              agentId: bot.id,
+              agentLabel: bot.name,
+              runId,
+              threadId: thread.id,
+              sourceMessageId: run.sourceMessageId,
+              signal: ctx.context.signal,
+            },
+          );
+          args = { ...args, ...decisionAudience(status, args.visibility) };
+        }
+        request.effectRequest = args;
+      }
+    } catch (error) {
+      return {
+        error: error instanceof Error ? error.message : "Invalid decision request.",
+      };
+    }
   }
   const fleetWrite =
     FLEET_WRITE_TOOL_NAMES_SET.has(name) ||

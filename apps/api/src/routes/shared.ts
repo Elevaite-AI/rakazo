@@ -20,7 +20,7 @@ function hostCredentials(active: boolean, provider: string) {
 export async function meDto(deps: RouterDeps, actor: Actor): Promise<Me> {
   const [user, setup] = await Promise.all([
     deps.prisma.user.findUniqueOrThrow({
-      where: { id: actor.userId },
+      where: { id: actor.requesterUserId ?? actor.userId },
       select: {
         email: true,
         name: true,
@@ -31,11 +31,13 @@ export async function meDto(deps: RouterDeps, actor: Actor): Promise<Me> {
     modelSetup(deps, actor),
   ]);
   return {
-    ticketBoardEnabled: deps.env.ticketBoardEnabled === true,
-    phoneCallsEnabled: deps.env.phoneCallsEnabled === true,
+    conversationOnly: Boolean(actor.requesterUserId),
+    canApproveSharedActions: Boolean(actor.requesterUserId && actor.sharedApprovalRevision),
+    ticketBoardEnabled: !actor.requesterUserId && deps.env.ticketBoardEnabled === true,
+    phoneCallsEnabled: !actor.requesterUserId && deps.env.phoneCallsEnabled === true,
     navLinks: deps.env.navLinks ?? [],
     maxUploadSizeBytes: attachmentMaxBytes(deps.env),
-    userId: actor.userId,
+    userId: actor.requesterUserId ?? actor.userId,
     email: user.email,
     name: user.name,
     spaceId: actor.spaceId,

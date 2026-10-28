@@ -27,6 +27,7 @@ import {
   shouldRenderToolCard,
   toolStepCount,
 } from "../../lib/tool-activity-view";
+import { useConversationOnly, useSharedApprover } from "../../lib/workspace-capabilities";
 import { ReplyLine } from "./chat-context";
 import { FALLBACK_BOT_COLOR, previewMessageText } from "./chat-shared";
 import type { ImportSetupTarget } from "./import-setup-card";
@@ -99,7 +100,7 @@ export const MessageView = memo(function MessageView({
   voiceReady: boolean;
   speaking: boolean;
   onSpeak: () => void;
-  onOpenComputer: (botId?: string) => void;
+  onOpenComputer: (botId?: string, takeControl?: boolean) => void;
   /** Opens where an imported item's setup is finished. */
   onOpenImportSetup?: (target: ImportSetupTarget) => void;
   /** Opens the agent importer (from Chief's first-run focus card). */
@@ -111,6 +112,8 @@ export const MessageView = memo(function MessageView({
   onReact: (message: ThreadMessage, reaction: MessageReaction) => Promise<void>;
 }) {
   const { t } = useLingui();
+  const shared = useConversationOnly();
+  const approver = useSharedApprover();
   const isNarration =
     message.role === "bot" &&
     message.blocks.length > 0 &&
@@ -158,6 +161,17 @@ export const MessageView = memo(function MessageView({
             size={22}
           />
           {speakerName}
+        </div>
+      ) : null}
+      {message.role === "user" &&
+      message.blocks.find((block) => block.kind === "text" && block.sharedAuthor)?.kind ===
+        "text" ? (
+        <div className="text-xs text-muted-foreground">
+          {
+            message.blocks
+              .filter((block) => block.kind === "text")
+              .find((block) => block.sharedAuthor)?.sharedAuthor?.label
+          }
         </div>
       ) : null}
       <ReplyLine
@@ -546,9 +560,25 @@ export const MessageView = memo(function MessageView({
                 className={`relative w-full min-w-0 ${isSecretAskBlock(block) ? "" : "max-w-xl"}`}
               >
                 <AskCard
-                  block={block}
-                  canAnswer={canAnswer}
-                  canDismiss={canDismiss}
+                  block={
+                    shared
+                      ? {
+                          ...block,
+                          actions: block.actions?.filter((action) =>
+                            ["allow", "deny"].includes(action.id),
+                          ),
+                        }
+                      : block
+                  }
+                  canAnswer={
+                    canAnswer &&
+                    (!shared ||
+                      (approver && Boolean(block.approvalEffectId) && !block.instructionUpdate))
+                  }
+                  canDismiss={canDismiss && !shared}
+                  unavailableReason={
+                    shared && !approver && canAnswer ? t`Workspace approver required` : undefined
+                  }
                   onAnswer={(text, username) => onAnswer(message, text, username)}
                   onDismiss={() => onAnswer(message, "", undefined, true)}
                 />
@@ -594,9 +624,9 @@ export const MessageView = memo(function MessageView({
                   type="button"
                   size="sm"
                   data-testid="computer-card-open"
-                  onClick={() => onOpenComputer(message.botId)}
+                  onClick={() => onOpenComputer(message.botId, block.state === "Needs you")}
                 >
-                  <Trans>Open</Trans>
+                  {block.state === "Needs you" ? <Trans>Continue</Trans> : <Trans>Open</Trans>}
                 </Button>
               </div>
             );

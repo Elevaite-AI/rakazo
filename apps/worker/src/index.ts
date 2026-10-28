@@ -9,6 +9,7 @@ import { createWorkerSecretStore } from "./secret-store.js";
 loadRootEnv();
 
 import {
+  bindSharedWorkspaceMembership,
   ChatSdkMessagingSurface,
   CodexCatalogCache,
   contentKeyProviderFromEnv,
@@ -19,6 +20,7 @@ import {
   createConnectorStack,
   createDeadJobPruner,
   createIdleComputerSweeper,
+  createDatabaseMemoryConnectionMonitor,
   createJobReconciler,
   createMessagingContextLoader,
   createModelCreditReconciler,
@@ -35,9 +37,11 @@ import {
   deploymentModelUsageLookup,
   ExpoPushProvider,
   GraphileJobPublisher,
+  governedMemoryFromEnv,
   homeStorageSweeper,
   InMemoryJobQueue,
   InstalledConnectorProvider,
+  loadSharedWorkspaceAccess,
   installedMessaging,
   isComposioEnabled,
   isMessagingSurfaceEnabled,
@@ -208,6 +212,10 @@ async function main() {
   ]);
   integrationSettings.warmDirectories();
   const memoryProviders = new SpaceMemoryProviderResolver(prisma, secrets);
+  const governedMemory = governedMemoryFromEnv();
+  const memoryConnectionMonitor = governedMemory
+    ? createDatabaseMemoryConnectionMonitor({ prisma, events, provider: governedMemory, dataDir })
+    : undefined;
   const home = createAgentHomeStore(dataDir, prisma);
   void home.removeStaleStaging().catch((error) => logger.error("home staging cleanup", error));
   const artifacts = createArtifactStore(dataDir, prisma);
@@ -241,7 +249,12 @@ async function main() {
     jobs,
     accessToken: process.env.EXPO_ACCESS_TOKEN,
   });
+  const sharedWorkspaceAccess = bindSharedWorkspaceMembership(
+    prisma,
+    await loadSharedWorkspaceAccess(),
+  );
   const executor = createRunExecutor({
+    sharedWorkspaceAccess,
     maxUploadSizeBytes: uploadSizeFromEnv(process.env),
     prisma,
     runtime,
@@ -250,6 +263,7 @@ async function main() {
     sandbox,
     memory: new MarkdownMemoryStore(prisma),
     memoryProviders,
+    governedMemory,
     home,
     artifacts,
     connector: stack.connector,
@@ -270,6 +284,7 @@ async function main() {
       process.env.COMPOSIO_API_KEY ?? "",
       process.env.CURSOR_API_KEY ?? "",
       process.env.TYPESAFE_API_KEY ?? "",
+      process.env.MEMORY_WORKFLOW_TOKEN ?? "",
     ].filter(Boolean),
     secretStore: secrets,
     mcpAllowPrivateEndpoint: process.env.MCP_ALLOW_PRIVATE_ENDPOINT === "true",
@@ -340,6 +355,7 @@ async function main() {
       : createRoutineRetryNoticeReconciler(pool, (runId) =>
           executor.notifyRoutineRetryAttemptsExhausted(runId),
         ),
+    reconcileMemoryConnection: memoryConnectionMonitor?.tick,
     reconcileSecurityEventRetention: createSecurityEventPruner(
       prisma,
       securityEventRetentionDays(),
@@ -357,6 +373,7 @@ async function main() {
     shutdown.abort();
     try {
       await stopHealth?.();
+      await memoryConnectionMonitor?.stop();
       await reconciler.stop();
       await jobHost.stop();
       await jobs.close();

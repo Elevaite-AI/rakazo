@@ -69,12 +69,14 @@ export function AskCard({
   block,
   canAnswer,
   canDismiss,
+  unavailableReason,
   onAnswer,
   onDismiss,
 }: {
   block: AskBlock;
   canAnswer: boolean;
   canDismiss: boolean;
+  unavailableReason?: string;
   onAnswer: (text: string, username?: string) => Promise<void>;
   /** Turns down a secret request without a value. */
   onDismiss: () => Promise<void>;
@@ -338,7 +340,7 @@ export function AskCard({
         </div>
       ) : !canAnswer ? (
         <div className="mt-3.5 text-[13.5px] font-medium text-muted-foreground">
-          <Trans>No longer active</Trans>
+          {unavailableReason ?? <Trans>No longer active</Trans>}
         </div>
       ) : ownerOnly ? null : displayActions?.length ? (
         <div className="mt-3.5 flex flex-wrap gap-2">

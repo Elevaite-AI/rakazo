@@ -213,3 +213,33 @@ describe("agent connection response cards", () => {
     });
   });
 });
+
+it("shows every character of a decision and one-time approval, including scope and revision", () => {
+  const content = "x".repeat(4_000);
+  const block = buildApprovalAskBlock(
+    "effect",
+    "correct_decision",
+    {
+      factId: "fact",
+      content,
+      expectedRevision: 2,
+      visibility: "private",
+      reason: "Correct the date",
+    },
+    [],
+  );
+  expect(block).toMatchObject({
+    kind: "ask",
+    approvalEffectId: "effect",
+    text: "Approve decision correction?",
+    actions: [
+      { id: "allow", label: "Approve" },
+      { id: "deny", label: "Dismiss" },
+    ],
+  });
+  if (block.kind !== "ask") throw Error("Expected approval");
+  expect(block.detail).toContain(content);
+  expect(block.detail).toContain("Visibility: Private");
+  expect(block.detail).toContain("Current revision: 2");
+  expect(block.detail!.length).toBeLessThanOrEqual(approvalDetailLength("correct_decision"));
+});

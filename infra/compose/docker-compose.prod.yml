@@ -91,6 +91,10 @@ x-app-environment: &app-environment
   ANTHROPIC_API_KEY:
   TYPESAFE_API_KEY:
   MAX_TOOL_CALLS_PER_TURN:
+  # Optional governed decision workflow, shared by every agent on this deployment.
+  MEMORY_WORKFLOW_URL:
+  MEMORY_WORKFLOW_TOKEN:
+  MEMORY_WORKFLOW_ALLOW_PRIVATE_ENDPOINT:
   MODEL_STREAM_MAX_RETRIES:
   RAKAZO_LOCAL_MODELS:
   RAKAZO_LOCAL_MODELS_URL:

@@ -581,8 +581,8 @@ export function useComputerControls({
   }
   const openComputerRef = useRef(openComputer);
   openComputerRef.current = openComputer;
-  const onOpenComputer = useCallback((botId?: string) => {
-    void openComputerRef.current(botId);
+  const onOpenComputer = useCallback((botId?: string, takeControl = false) => {
+    void openComputerRef.current(botId, takeControl);
   }, []);
 
   async function releaseComputer(reason?: ComputerReleaseReason) {

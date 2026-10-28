@@ -24,9 +24,11 @@ export type FleetCardSummary = { title: string; lines: string[] };
  * holds the longest instructions plus the two length lines above them.
  */
 export function approvalDetailLength(toolName: string): number {
-  return toolName === "set_child_instructions"
-    ? BOT_INSTRUCTIONS_MAX_LENGTH + MAX_APPROVAL_SUMMARY_LENGTH
-    : MAX_APPROVAL_DETAIL_LENGTH;
+  return toolName === "save_decision" || toolName === "correct_decision"
+    ? 6_000
+    : toolName === "set_child_instructions"
+      ? BOT_INSTRUCTIONS_MAX_LENGTH + MAX_APPROVAL_SUMMARY_LENGTH
+      : MAX_APPROVAL_DETAIL_LENGTH;
 }
 
 export function buildApprovalAskBlock(
@@ -36,6 +38,35 @@ export function buildApprovalAskBlock(
   secrets: string[],
   options?: { reviewReason?: string; summary?: FleetCardSummary },
 ): MessageBlock {
+  if (toolName === "save_decision" || toolName === "correct_decision") {
+    const correcting = toolName === "correct_decision";
+    const lines = [
+      `Visibility: ${args.visibility === "shared" ? "Shared" : "Private"}`,
+      `Audience: ${String(args.audienceLabel)}`,
+      ...(correcting
+        ? [
+            `Decision: ${String(args.factId)}`,
+            `Current revision: ${String(args.expectedRevision)}`,
+            `Reason: ${String(args.reason)}`,
+          ]
+        : []),
+      ...(args.title ? [`Title: ${String(args.title)}`] : []),
+      "",
+      String(args.content),
+    ];
+    return {
+      kind: "ask",
+      approvalEffectId: effectId,
+      text: correcting ? "Approve decision correction?" : "Approve decision?",
+      detail: redactSecrets(lines.join("\n"), secrets),
+      detailFormat: "text",
+      status: "pending",
+      actions: [
+        { id: "allow", label: "Approve" },
+        { id: "deny", label: "Dismiss" },
+      ],
+    };
+  }
   if (options?.summary) {
     // Built from what was resolved before the effect was recorded, not from what the model typed.
     return {

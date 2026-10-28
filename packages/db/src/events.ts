@@ -237,6 +237,8 @@ export interface PauseRunForTakeover {
 }
 
 export interface AnswerRunInput {
+  /** Server-authenticated receipt, persisted atomically with the approval. */
+  sharedApproval?: { userId: string; grantRevision: string; approvalRevision: string };
   spaceId: string;
   threadId: string;
   runId: string;
@@ -742,6 +744,14 @@ async function commitAnswerRunInput(
   );
   if (pendingAsk?.kind !== "ask") return null;
   const approvalAsk = isApprovalAskBlock(pendingAsk);
+  if (
+    input.sharedApproval &&
+    (!approvalAsk ||
+      pendingAsk.instructionUpdate ||
+      !["allow", "deny"].includes(input.answer) ||
+      input.sharedApproval.userId !== input.answeredByUserId)
+  )
+    return null;
   const secretAsk = isSecretAskBlock(pendingAsk);
   const choiceAsk = !approvalAsk && !secretAsk && Boolean(pendingAsk.actions?.length);
   const selectedChoice = choiceAsk ? resolveAskChoice(input.answer, pendingAsk.actions) : undefined;
@@ -802,6 +812,13 @@ async function commitAnswerRunInput(
       },
     });
     if (!approvalEffect) return null;
+    if (approvalEffect.kind === "save_decision" || approvalEffect.kind === "correct_decision") {
+      if (
+        run.userId !== input.answeredByUserId ||
+        (approvalAnswer !== "allow" && approvalAnswer !== "deny")
+      )
+        return null;
+    }
     if (pendingAsk.instructionUpdate) {
       if (
         approvalEffect.kind !== "propose_instructions_update" ||
@@ -889,7 +906,23 @@ async function commitAnswerRunInput(
     const allowed = approvalAnswer === "allow" || approvalAnswer === "always";
     await tx.externalEffect.update({
       where: { id: approvalEffect!.id },
-      data: { status: allowed ? "approved" : "denied" },
+      data: {
+        status: allowed ? "approved" : "denied",
+        ...(allowed &&
+        (approvalEffect!.kind === "save_decision" || approvalEffect!.kind === "correct_decision")
+          ? {
+              result: {
+                approval: {
+                  effectId: approvalEffect!.id,
+                  runId: input.runId,
+                  approverUserId: input.answeredByUserId,
+                  approvedAt: new Date().toISOString(),
+                  kind: "native-owner-approval",
+                },
+              },
+            }
+          : {}),
+      },
     });
     // "Always" on a fetch card allows that site, never every site the tool can reach, and on a
     // Composio batch allows each action in it, never every action the batch tool can run.
@@ -963,6 +996,7 @@ async function commitAnswerRunInput(
           ...block,
           status: "answered" as const,
           answer: recordedAnswer,
+          ...(input.sharedApproval ? { sharedApproval: input.sharedApproval } : {}),
           ...(dismissed ? { dismissed: true as const } : {}),
           ...(editedInstructions !== undefined && pendingAsk.instructionUpdate
             ? {

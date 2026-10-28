@@ -2152,3 +2152,26 @@ when they next open the app. Remove the archived token files after verifying the
 Restart API and worker processes after both commands finish. A schema-only rollback remains
 compatible with the previous release, but the old code does not read database registrations
 or object-backed artifacts.
+### Governed decision memory
+
+The optional decision workflow is enabled for all current and future agents when both
+`MEMORY_WORKFLOW_URL` and `MEMORY_WORKFLOW_TOKEN` are configured. Set the URL to the final
+HTTPS workflow endpoint, such as `https://memory.example.com/workflow`; keep the deployment
+credential in the server environment or managed secret store. Neither value belongs in an agent's
+instructions. Leave both unset to run without this integration. Partial configuration fails closed.
+For a local service, `MEMORY_WORKFLOW_ALLOW_PRIVATE_ENDPOINT=true` permits an explicit
+private IP or loopback HTTP endpoint. Public HTTP, URL credentials and redirects are refused.
+These settings are passed through by the source, production and published-image Compose files.
+
+The worker's elected reconciler checks memory connectivity and stalled publication without model
+calls. It checks up to twenty active agents per minute, with four concurrent probes and a three-second
+probe deadline; larger rosters are scanned in rotating batches. Newly added agents enter the scan
+automatically. A healthy new agent does not need a manual connector assignment. The service may
+lazily initialise its owner/workspace state on first use; an uninitialised but healthy connection stays quiet.
+
+A first failure, changed failure status or recovery posts an unread notice in the affected agent's chat.
+Healthy startup and unchanged status stay quiet. The worker persists status metadata in
+`DATA_DIR/memory-connection-monitor.json` with private file permissions and idempotent notice keys,
+so restarts retry an undelivered notice without posting it twice. No decision content or service
+credentials are stored in this file. The monitor never reconnects disabled integrations or changes
+memory permissions. Keep the worker's data volume when replacing images.
