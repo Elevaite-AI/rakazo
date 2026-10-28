@@ -88,6 +88,8 @@ x-app-environment: &app-environment
   PI_DEFAULT_CREDENTIALS:
   PI_SESSION_RECORDING:
   RAKAZO_LIVE_MODEL_CATALOG:
+  # Optional private decision-client configuration, required by both API and worker.
+  RAKAZO_SHARED_WORKSPACE_CONFIG:
   OPENROUTER_API_KEY:
   ANTHROPIC_API_KEY:
   TYPESAFE_API_KEY:
@@ -387,6 +389,8 @@ services:
       - "host.docker.internal:host-gateway"
     environment:
       <<: *app-environment
+      RAKAZO_AGENT_GATEWAY_SPACE_IDS:
+      RAKAZO_AGENT_GATEWAY_TOKEN:
       # Sign-in, sessions, billing and inbound webhooks: API only.
       API_HOST: "0.0.0.0"
       API_PORT:
