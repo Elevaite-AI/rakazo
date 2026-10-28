@@ -1,0 +1,41 @@
+name: Shared workspace pilot
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - apps/shared-workspace-pilot/**
+      - packages/db/**
+      - pnpm-lock.yaml
+      - .github/workflows/shared-workspace-pilot.yml
+permissions:
+  contents: read
+jobs:
+  isolated-proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - run: npm install --global pnpm@9.15.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: bash apps/shared-workspace-pilot/setup.sh
+      - name: Browser proof with synthetic accounts
+        working-directory: apps/shared-workspace-pilot
+        run: |
+          set -euo pipefail
+          source env.sh
+          npm exec -- playwright install --with-deps chromium
+          npm run seed
+          node server.mjs > .local/server.log 2>&1 &
+          pilot_pid=$!
+          trap 'kill "$pilot_pid"' EXIT
+          for attempt in {1..30}; do
+            if curl -fsS http://127.0.0.1:15440/ >/dev/null; then break; fi
+            sleep 1
+          done
+          npm run test:browser

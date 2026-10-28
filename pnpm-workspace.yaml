@@ -1,5 +1,6 @@
 packages:
   - "apps/*"
+  - "!apps/shared-workspace-pilot"
   - "packages/*"
   - "infra/sandboxes/supervisor"
   - "infra/updater"

@@ -61,6 +61,8 @@ describe("toolRequiresApproval", () => {
 
   it("always asks before bot management writes that touch several bots, cost money or rewrite a bot", () => {
     for (const name of [
+      "save_decision",
+      "correct_decision",
       "create_group",
       "update_group",
       "set_child_instructions",

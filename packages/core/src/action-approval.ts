@@ -43,6 +43,8 @@ const APPROVAL_REQUIRED_BUILTIN_TOOLS = new Set([
 ]);
 const EXPLICIT_APPROVAL_BUILTIN_TOOLS = new Set([
   "respond_agent_connection",
+  "save_decision",
+  "correct_decision",
   "create_space",
   "propose_instructions_update",
   "create_group",
@@ -53,6 +55,9 @@ const EXPLICIT_APPROVAL_BUILTIN_TOOLS = new Set([
 ]);
 
 const UNATTENDED_SAFE_BUILTIN_TOOLS = new Set([
+  "recall_decisions",
+  "decision_history",
+  "memory_status",
   "browser_snapshot",
   "cloud_agent_status",
   "computer_observe",

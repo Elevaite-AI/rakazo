@@ -819,6 +819,10 @@ export async function sendThreadMessage(
             thinkingLevel: true,
           },
         });
+        if (actor.requesterUserId && activeRuns.length)
+          throw new ORPCError("CONFLICT", {
+            message: "The shared agent is busy. Wait for its reply.",
+          });
         if (input.imageHandling === "confirm") {
           await assertImageRecipients(tx, actor, target, input.text, attachmentBlocks, {
             botId: target.botId,
@@ -826,10 +830,19 @@ export async function sendThreadMessage(
             imageAdmission: deps.imageAdmission,
           });
         }
-        const blocks = buildUserMessageBlocks(
+        const blocks: MessageBlock[] = buildUserMessageBlocks(
           input.text,
           sendAttachmentBlocks(attachmentBlocks, artifacts, input.imageHandling),
         );
+        if (actor.requesterUserId) {
+          for (const block of blocks)
+            if (block.kind === "text")
+              block.sharedAuthor = {
+                userId: actor.requesterUserId,
+                label: actor.email,
+                grantRevision: actor.sharedGrantRevision!,
+              };
+        }
         const message = await createThreadMessageInTransaction(tx, {
           threadId: target.threadId,
           role: "user",

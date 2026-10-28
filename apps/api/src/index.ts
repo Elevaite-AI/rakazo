@@ -1,4 +1,5 @@
 import type { Socket } from "node:net";
+import { loadSharedWorkspaceAccess } from "@rakazo/adapters";
 import { loadRootEnv } from "@rakazo/core/node/load-root-env";
 
 loadRootEnv();
@@ -13,7 +14,11 @@ const logger = createRootLogger(SERVICE_NAMES.api);
 
 try {
   const env = loadEnv();
-  const { app, stop, handleUpgrade } = await createApp({ ...env, logger });
+  const { app, stop, handleUpgrade } = await createApp({
+    ...env,
+    logger,
+    sharedWorkspaceAccess: await loadSharedWorkspaceAccess(),
+  });
   const server = serve({ fetch: app.fetch, port: env.port, hostname: env.apiHost }, () => {
     logger.info("api listening", { "http.host": env.apiHost, "http.port": env.port });
   });

@@ -47,6 +47,36 @@ const createRunExecutor = (deps: Parameters<typeof createExecutor>[0]) =>
   createExecutor({ ...deps, prisma: withModelRoles(deps.prisma) });
 
 describe("bot tool permissions", () => {
+  it("offers configured decision memory to every owner chat and honours disable controls", () => {
+    const options = {
+      graphicalToolsAllowed: false,
+      groupId: null,
+      trigger: "user",
+      semanticMemoryEnabled: false,
+      messagingChannelRun: false,
+    };
+    const names = [
+      "save_decision",
+      "correct_decision",
+      "recall_decisions",
+      "decision_history",
+      "memory_status",
+    ];
+    const selected = (extra: Partial<Parameters<typeof selectBuiltinToolsForRun>[0]> = {}) =>
+      selectBuiltinToolsForRun({ ...options, ...extra }).map((t) => t.name);
+    for (const name of names) expect(selected()).not.toContain(name);
+    expect(selected({ governedMemoryEnabled: true })).toEqual(expect.arrayContaining(names));
+    for (const name of names) {
+      expect(selected({ governedMemoryEnabled: true, disabledBuiltinTools: names })).not.toContain(
+        name,
+      );
+      expect(selected({ governedMemoryEnabled: true, groupId: "group-1" })).not.toContain(name);
+      expect(selected({ governedMemoryEnabled: true, messagingChannelRun: true })).not.toContain(
+        name,
+      );
+    }
+  });
+
   it("never lets self-edit change disabled tools alongside an allowed field", () => {
     expect(parseUpdateBotPatch({ name: "Scout", disabledBuiltinTools: [] }, "Bot")).toEqual({
       patch: { name: "Scout" },

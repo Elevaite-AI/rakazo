@@ -45,6 +45,7 @@ import { createModelConnector, prepareAllowedThinkingLevels } from "../model-cre
 import type { RouterDeps } from "../router.js";
 import { createRoutineAnnouncer } from "../routines.js";
 import { procedureSecurityEvent } from "../security-audit.js";
+import { SHARED_WORKSPACE_ROUTES } from "../shared-workspace.js";
 import { createTaughtSkillsService } from "../taught-skills.js";
 import { meDto } from "./shared.js";
 
@@ -343,9 +344,11 @@ export function createRouterContext(deps: RouterDeps) {
   const agentSkills = createAgentSkillsService(deps.prisma);
 
   const authed = os
-    .use(async ({ context, next }) => {
+    .use(async ({ context, next, path }) => {
       const actor = context.actor;
       if (!actor) throw new ORPCError("UNAUTHORIZED");
+      if (actor.requesterUserId && !SHARED_WORKSPACE_ROUTES.has(path.join(".")))
+        throw new ORPCError("FORBIDDEN");
       return asTenant(actor, () => next({ context: { ...context, actor } }));
     })
     .use(async ({ context, next, path }, input) => {

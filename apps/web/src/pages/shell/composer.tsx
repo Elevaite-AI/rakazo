@@ -32,6 +32,7 @@ import {
   writeComposerDraft,
 } from "../../lib/composer-draft";
 import { isFileDrag, isFilePaste } from "../../lib/pending-attachments";
+import { useConversationOnly } from "../../lib/workspace-capabilities";
 import { ComposerReplyPreview } from "./chat-context";
 import type { PendingAttachment } from "./chat-shared";
 import { previewMessageText } from "./chat-shared";
@@ -124,6 +125,7 @@ export const Composer = memo(function Composer({
   onImportAgent?: (agent: AgentImportReader) => void;
 }) {
   const { t } = useLingui();
+  const conversationOnly = useConversationOnly();
   const [draft, setDraft] = useState(() => readComposerDraft(draftKey));
   const [mentionQuery, setMentionQuery] = useState<string | null>(() => {
     const mentionMatch = /(?:^|\s)@([\w-]*)$/.exec(draft);
@@ -245,6 +247,7 @@ export const Composer = memo(function Composer({
   useEffect(() => setAgentDrop(null), [draftKey]);
 
   function pickAttachments(files: FileList | readonly File[] | null) {
+    if (conversationOnly) return false;
     if (!files?.length) return;
     if (onAttachmentPick(files)) markEdited();
   }
@@ -258,7 +261,7 @@ export const Composer = memo(function Composer({
     // `/` only at the start of the draft so forced skills expand (`Use skill:` / `/Name` prefix).
     const slashMatch = selectedSkill === null ? /^\/([^\n]*)$/.exec(value) : null;
     const nextSlash = slashMatch ? (slashMatch[1] ?? "") : null;
-    if (nextSlash !== null && slashQuery === null) onSlashOpen?.();
+    if (!conversationOnly && nextSlash !== null && slashQuery === null) onSlashOpen?.();
     setSlashQuery(nextSlash);
   }
 
@@ -307,12 +310,12 @@ export const Composer = memo(function Composer({
   }
 
   const mentionOptions = useMemo(() => {
-    if (mentionQuery === null || !mentionTargets?.length) return [];
+    if (conversationOnly || mentionQuery === null || !mentionTargets?.length) return [];
     const query = mentionQuery.trim().toLowerCase();
     return mentionTargets
       .filter((target) => !query || target.name.toLowerCase().startsWith(query))
       .slice(0, 10);
-  }, [mentionQuery, mentionTargets]);
+  }, [mentionQuery, mentionTargets, conversationOnly]);
 
   useEffect(() => {
     setMentionHighlightKey(null);
@@ -328,7 +331,7 @@ export const Composer = memo(function Composer({
     : undefined;
 
   const slashSkillOptions = useMemo(() => {
-    if (slashQuery === null) return [];
+    if (conversationOnly || slashQuery === null) return [];
     const query = slashQuery.trim().toLowerCase();
     const skills = agentSkills ?? [];
     return skills
@@ -340,13 +343,13 @@ export const Composer = memo(function Composer({
         );
       })
       .slice(0, 8);
-  }, [agentSkills, slashQuery]);
+  }, [agentSkills, slashQuery, conversationOnly]);
 
   const slashActionOptions = useMemo(() => {
-    if (slashQuery === null) return [];
+    if (conversationOnly || slashQuery === null) return [];
     const query = slashQuery.trim().toLowerCase();
     return SLASH_ACTIONS.filter((action) => !query || action.label.toLowerCase().includes(query));
-  }, [slashQuery]);
+  }, [slashQuery, conversationOnly]);
 
   const showSlashPicker =
     slashQuery !== null &&
@@ -425,6 +428,10 @@ export const Composer = memo(function Composer({
   }
 
   function handleDrop(event: DragEvent<HTMLFieldSetElement>) {
+    if (conversationOnly) {
+      event.preventDefault();
+      return;
+    }
     const dataTransfer = event.dataTransfer;
     if (!isFileDrag(dataTransfer)) return;
     event.preventDefault();
@@ -727,19 +734,21 @@ export const Composer = memo(function Composer({
           className="hidden"
           onChange={(event) => pickAttachments(event.target.files)}
         />
-        <Button
-          ref={attachButtonRef}
-          variant="ghost"
-          size="icon"
-          aria-label={t`Attach file`}
-          disabled={disabled}
-          onClick={() => fileInputRef.current?.click()}
-          className={`col-start-1 size-8 shrink-0 rounded-full border border-border bg-muted text-muted-foreground transition-colors hover:bg-accent hover:text-foreground ${
-            expanded ? "row-start-2" : ""
-          }`}
-        >
-          <Plus size={16} strokeWidth={2} />
-        </Button>
+        {!conversationOnly && (
+          <Button
+            ref={attachButtonRef}
+            variant="ghost"
+            size="icon"
+            aria-label={t`Attach file`}
+            disabled={disabled}
+            onClick={() => fileInputRef.current?.click()}
+            className={`col-start-1 size-8 shrink-0 rounded-full border border-border bg-muted text-muted-foreground transition-colors hover:bg-accent hover:text-foreground ${
+              expanded ? "row-start-2" : ""
+            }`}
+          >
+            <Plus size={16} strokeWidth={2} />
+          </Button>
+        )}
         <div
           ref={composerFieldRef}
           className={`flex min-w-0 flex-wrap items-end gap-1.5 ${

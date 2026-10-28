@@ -3,6 +3,7 @@ import { Button, cn } from "@rakazo/ui-web";
 import { TextQuote } from "lucide-react";
 import { memo, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useConversationOnly } from "../../lib/workspace-capabilities";
 
 export const QuoteSelectionButton = memo(function QuoteSelectionButton({
   range,
@@ -12,6 +13,7 @@ export const QuoteSelectionButton = memo(function QuoteSelectionButton({
   onQuote: () => void;
 }) {
   const { t } = useLingui();
+  const conversationOnly = useConversationOnly();
   const buttonRef = useRef<HTMLButtonElement>(null);
   const [placement, setPlacement] = useState<{
     top: number;
@@ -48,6 +50,7 @@ export const QuoteSelectionButton = memo(function QuoteSelectionButton({
     };
   }, [range]);
 
+  if (conversationOnly) return null;
   return createPortal(
     // The wrapper owns the offset so the button's pressed nudge cannot move it.
     <div

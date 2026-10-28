@@ -23,6 +23,7 @@ import {
   UserRound,
 } from "lucide-react";
 import { useLayoutEffect, useRef, useState } from "react";
+import { useConversationOnly } from "../lib/workspace-capabilities";
 import { useSidebarUpdate } from "./DesktopUpdates";
 import { IconTooltip } from "./IconTooltip";
 
@@ -73,6 +74,7 @@ export function SidebarFooter({
   logOutError,
 }: Props) {
   const { t } = useLingui();
+  const conversationOnly = useConversationOnly();
   const update = useSidebarUpdate();
   const [failedImage, setFailedImage] = useState<string | null>(null);
   const pillRef = useRef<HTMLButtonElement>(null);
@@ -98,6 +100,15 @@ export function SidebarFooter({
     measure();
     return () => observer.disconnect();
   }, [mini]);
+  if (conversationOnly)
+    return (
+      <div className="p-3 text-sm">
+        <span>{name}</span>
+        <Button variant="ghost" onClick={onLogOut} disabled={signingOut}>
+          <Trans>Log out</Trans>
+        </Button>
+      </div>
+    );
   return (
     <div
       data-testid="sidebar-footer"

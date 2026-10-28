@@ -221,6 +221,71 @@ const fleetGroupTargetProperties = {
 
 export const builtinAgentTools: ConnectorTool[] = [
   {
+    name: "save_decision",
+    description:
+      "Propose a durable decision for the owner to approve. Choose private (owner only) or shared (authorised workspace/team). Nothing is published before the owner approves the exact wording.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        content: { type: "string", minLength: 1, maxLength: 4000 },
+        visibility: { type: "string", enum: ["private", "shared"] },
+        title: { type: "string", maxLength: 200 },
+      },
+      required: ["content", "visibility"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "correct_decision",
+    description:
+      "Propose a correction to an existing decision at the revision just read. The owner must approve it. Prior revisions remain history; visibility cannot change.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        factId: { type: "string", maxLength: 200 },
+        content: { type: "string", maxLength: 4000 },
+        expectedRevision: { type: "integer", minimum: 1 },
+        reason: { type: "string", maxLength: 500 },
+      },
+      required: ["factId", "content", "expectedRevision", "reason"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "recall_decisions",
+    description:
+      "Retrieve current authorised decisions with source attribution. Consult for earlier decisions, commitments and corrections. A failed lookup means evidence is unavailable, not that no decision exists.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        query: { type: "string", maxLength: 5000 },
+        visibility: { type: "string", enum: ["private", "shared"] },
+      },
+      required: ["query"],
+      additionalProperties: false,
+    },
+    readOnly: true,
+  },
+  {
+    name: "decision_history",
+    description:
+      "Read authorised current and superseded decision revisions. Pending revisions are not current decisions.",
+    inputSchema: {
+      type: "object",
+      properties: { factId: { type: "string", maxLength: 200 } },
+      required: ["factId"],
+      additionalProperties: false,
+    },
+    readOnly: true,
+  },
+  {
+    name: "memory_status",
+    description:
+      "Check the decision-memory connection and publication status for this owner and workspace.",
+    inputSchema: { type: "object", properties: {}, additionalProperties: false },
+    readOnly: true,
+  },
+  {
     name: "generate_image",
     description:
       "Generate one image from a prompt and attach it to chat. Uses the deployment media model and may incur charges. Do not retry failed submissions automatically.",

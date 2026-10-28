@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { IconTooltip } from "../../components/IconTooltip";
 import { desktopBridge } from "../../lib/desktop";
 import type { Panel } from "../../lib/right-panel-state";
+import { useConversationOnly } from "../../lib/workspace-capabilities";
 import { WindowChrome } from "../WindowChrome";
 import { BotCreatePicker } from "./bot-picker";
 import { isCreateMenuHotkey } from "./command-palette-hotkey";
@@ -60,6 +61,17 @@ export function SidebarHeader({
   setCreateBotOpen: (open: boolean) => void;
 }) {
   const { t } = useLingui();
+  const conversationOnly = useConversationOnly();
+  if (conversationOnly)
+    return (
+      <Button
+        variant="ghost"
+        aria-label={t`Minimize bots`}
+        onClick={() => setBotsSidebarCollapsedPref(!mini)}
+      >
+        <PanelLeftClose size={18} />
+      </Button>
+    );
   const hasWindowChrome = Boolean(desktopBridge());
   const toggleLabel = mini ? t`Show bots` : t`Minimize bots`;
   return (

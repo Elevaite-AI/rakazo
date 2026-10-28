@@ -1588,6 +1588,7 @@ msgstr "Kontextlimit"
 #: src/pages/Auth.tsx
 #: src/pages/Onboarding.tsx
 #: src/pages/shell/agent-import.tsx
+#: src/pages/shell/message-view.tsx
 msgid "Continue"
 msgstr "Weiter"
 
@@ -6061,6 +6062,10 @@ msgstr "Funktioniert mit deinem ChatGPT- oder Claude-Abo."
 
 #: src/pages/memory-providers/HonchoSettingsForm.tsx
 msgid "Workspace"
+msgstr ""
+
+#: src/pages/shell/message-view.tsx
+msgid "Workspace approver required"
 msgstr ""
 
 #: src/lib/billing.ts

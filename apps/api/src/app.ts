@@ -28,6 +28,7 @@ import type {
 } from "@rakazo/adapters";
 import {
   applyMessagingOutboundStatus,
+  bindSharedWorkspaceMembership,
   ChatSdkMessagingSurface,
   CodexCatalogCache,
   ComposioConnector,
@@ -91,7 +92,7 @@ import {
   withSecretPersistence,
 } from "@rakazo/adapters";
 import { createAuth, isBlockedAuthPath, loopbackTwinOrigins } from "@rakazo/auth";
-import type { Actor, AuthCapabilities } from "@rakazo/contracts";
+import type { Actor, AuthCapabilities, SharedWorkspaceAccess } from "@rakazo/contracts";
 import { isLocalhostOrLoopbackIp, SERVER_BUILD_HEADER } from "@rakazo/contracts";
 import { signupPolicyFromEnv } from "@rakazo/core";
 import type { Pool, PrismaClient } from "@rakazo/db";
@@ -127,6 +128,7 @@ import { MarkdownMemoryStore } from "@rakazo/memory";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { deleteAccountContent } from "./account-deletion.js";
+import { mountAgentGatewayRoutes } from "./agent-gateway.js";
 import { mountAppAssociation, nativePasskeys } from "./app-association.js";
 import { storeInboundAttachment } from "./artifacts.js";
 import { createBillingService } from "./billing.js";
@@ -158,6 +160,7 @@ import { mountApiRequestBodyLimits } from "./request-body-limit.js";
 import { createRouter } from "./router.js";
 import { mountScreenTarget } from "./screen-proxy.js";
 import { createAuthResponseAudit } from "./security-audit.js";
+import { SHARED_WORKSPACE_ROUTES, sharedWorkspaceActor } from "./shared-workspace.js";
 import { createSpeechSummarizer } from "./speech-summary.js";
 import { isDeferredReservationLost, TeamChatBridge } from "./team-chat-bridge.js";
 import { ModelTeamChatEngagementJudge } from "./team-chat-judge.js";
@@ -212,6 +215,7 @@ export function createApp(overrides: CreateAppOverrides = {}): Promise<AppHandle
 }
 
 type CreateAppOverrides = Partial<AppEnv> & {
+  sharedWorkspaceAccess?: SharedWorkspaceAccess;
   prisma?: PrismaClient;
   realtime?: RealtimeFanout;
   sandbox?: SandboxProvider;
@@ -286,6 +290,10 @@ async function buildApp(overrides: CreateAppOverrides): Promise<AppHandles> {
   if (secrets.describe().capabilities.degraded)
     logger.warn("Secret storage degraded; encrypted credentials remain available");
   prisma = withSecretPersistence(prisma, secrets);
+  const sharedWorkspaceAccess = bindSharedWorkspaceMembership(
+    prisma,
+    overrides.sharedWorkspaceAccess,
+  );
   installSecurityEventStore(prisma);
   const unreadableMasterKeys = await verifyContentKeys(prisma);
   if (unreadableMasterKeys.length)
@@ -556,6 +564,7 @@ async function buildApp(overrides: CreateAppOverrides): Promise<AppHandles> {
     ? new UserDevices({ prisma, forwardSecret: userDeviceSecret, hub: userDeviceHub })
     : undefined;
   const executor = createRunExecutor({
+    sharedWorkspaceAccess,
     billingEnabled: modelCreditsEnabled,
     maxUploadSizeBytes: env.maxUploadSizeBytes,
     contextStrategy,
@@ -651,6 +660,7 @@ async function buildApp(overrides: CreateAppOverrides): Promise<AppHandles> {
   reconciler?.start();
 
   const router = createRouter({
+    sharedWorkspaceAccess,
     speechSummary:
       env.voiceSummaryMinChars === undefined
         ? undefined
@@ -795,6 +805,7 @@ async function buildApp(overrides: CreateAppOverrides): Promise<AppHandles> {
     ["/api/v1/bots/*", "bot webhook"],
     ["/api/v1/messaging/*", "messaging webhook"],
     ["/api/v1/phone/*", "messaging webhook"],
+    ["/api/v1/agent-gateway/*", "agent gateway"],
   ] as const) {
     app.use(path, (_c, next) => runAsSystem(reason, next));
   }
@@ -820,7 +831,19 @@ async function buildApp(overrides: CreateAppOverrides): Promise<AppHandles> {
     const actor = await actorFromMembership(
       requireMembership(prisma, session.user.id, request.headers.get("x-rakazo-space-id")),
     );
-    return actor && { actor, sessionId: session.session.id };
+    if (!actor) return null;
+    let scopedActor: Actor | null;
+    try {
+      scopedActor = await sharedWorkspaceActor(actor, sharedWorkspaceAccess);
+    } catch {
+      return null;
+    } // Permission source unavailable: never reuse a stale grant.
+    if (!scopedActor) return null;
+    if (scopedActor.requesterUserId) {
+      const pathname = new URL(request.url).pathname;
+      if (!pathname.startsWith("/rpc/")) return null;
+    }
+    return { actor: scopedActor, sessionId: session.session.id };
   };
   const sessionActor = async (request: Request) => (await requestSession(request))?.actor ?? null;
   if (userDeviceHub && userDevices) {
@@ -857,6 +880,15 @@ async function buildApp(overrides: CreateAppOverrides): Promise<AppHandles> {
   app.use("/rpc/*", async (c, next) => {
     const session = await requestSession(c.req.raw);
     const actor = session?.actor ?? null;
+    const route = new URL(c.req.url).pathname.replace(/^\/rpc\//, "").replaceAll("/", ".");
+    if (actor?.requesterUserId && !SHARED_WORKSPACE_ROUTES.has(route)) {
+      return c.json(
+        {
+          json: { code: "FORBIDDEN", message: "Unavailable in this shared workspace", status: 403 },
+        },
+        403,
+      );
+    }
     if (actor) {
       enrichLogContext({ "user.id": actor.userId, "space.id": actor.spaceId });
     }
@@ -885,6 +917,13 @@ async function buildApp(overrides: CreateAppOverrides): Promise<AppHandles> {
     return actor;
   });
   mountWebhookHttpRoutes(app, { prisma, secrets, events, jobs });
+  mountAgentGatewayRoutes(app, {
+    prisma,
+    events,
+    jobs,
+    token: env.agentGatewayToken ?? "",
+    allowedSpaceIds: env.agentGatewaySpaceIds,
+  });
   if (billing && billingProvider) {
     mountBillingRoutes(app, {
       billing,

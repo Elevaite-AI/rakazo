@@ -95,7 +95,11 @@ export const SecretAskPurpose = z.enum(["otp", "password", "api_key"]);
 export type SecretAskPurpose = z.infer<typeof SecretAskPurpose>;
 
 export const MessageBlock = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("text"), text: z.string() }),
+  z.object({
+    kind: z.literal("text"),
+    text: z.string(),
+    sharedAuthor: z.object({ userId: Id, label: z.string(), grantRevision: z.string() }).optional(),
+  }),
   z.object({
     kind: z.literal("card"),
     lines: z.array(z.object({ k: z.string(), v: z.string() })),
@@ -104,6 +108,9 @@ export const MessageBlock = z.discriminatedUnion("kind", [
     kind: z.literal("ask"),
     text: z.string(),
     approvalEffectId: Id.optional(),
+    sharedApproval: z
+      .object({ userId: Id, grantRevision: z.string(), approvalRevision: z.string() })
+      .optional(),
     instructionUpdate: z
       .object({
         botId: Id,

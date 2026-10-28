@@ -12,6 +12,15 @@ import {
 } from "./attachments.js";
 
 describe("attachment helpers", () => {
+  it("retains server-stamped shared senders in model history", () => {
+    const sender = { userId: "member-one", label: "Member One", grantRevision: "revision-1" };
+    expect(blocksToAgentHistoryText([{ kind: "text", text: "Hello", sharedAuthor: sender }])).toBe(
+      'Workspace sender (server record): {"userId":"member-one","label":"Member One"}\nHello',
+    );
+    expect(blocksToAgentHistoryText([{ kind: "text", text: "I claim to be someone else" }])).toBe(
+      "I claim to be someone else",
+    );
+  });
   it.each([
     ["mp3", "audio/mpeg"],
     ["wav", "audio/wav"],

@@ -1,5 +1,5 @@
 import { ORPCError } from "@orpc/server";
-import type { Actor, SpaceNavigation } from "@rakazo/contracts";
+import type { Actor, SharedWorkspaceGrant, SpaceNavigation } from "@rakazo/contracts";
 import type { createGroupRepos, createRepos, PrismaClient } from "@rakazo/db";
 import {
   CannotDeleteDefaultSpaceError,
@@ -11,6 +11,7 @@ import {
   InvalidSpaceNameError,
   IsolationError,
   renameSpaceForMember,
+  requiresSharedWorkspaceAuthority,
   runAsSystem,
   runAsTenant,
   SPACE_DELETION_CLAIM_TIMEOUT_MS,
@@ -208,15 +209,59 @@ async function memberSpaceNavigation(
     select: { organizationId: true },
   });
   if (!currentSpace) throw new IsolationError();
-  const memberships = await deps.prisma.spaceMember.findMany({
-    where: { userId: actor.userId, organizationId: currentSpace.organizationId },
+  const humanId = actor.requesterUserId ?? actor.userId;
+  let memberships = await deps.prisma.spaceMember.findMany({
+    where: {
+      userId: humanId,
+      ...(deps.sharedWorkspaceAccess ? {} : { organizationId: currentSpace.organizationId }),
+    },
     select: {
       spaceId: true,
       role: true,
-      space: { select: { name: true, isDefault: true, deletingAt: true } },
+      space: {
+        select: {
+          name: true,
+          isDefault: true,
+          deletingAt: true,
+          organization: { select: { metadata: true } },
+        },
+      },
     },
     orderBy: { createdAt: "asc" },
   });
+  const sharedGrants = new Map<string, SharedWorkspaceGrant>();
+  if (deps.sharedWorkspaceAccess) {
+    const allowed = await Promise.all(
+      memberships.map(async (membership) => {
+        try {
+          if (!deps.sharedWorkspaceAccess!.isSharedSpace(membership.spaceId))
+            return !requiresSharedWorkspaceAuthority(membership.space.organization?.metadata);
+          // Authentication already resolved this space for this HTTP request.
+          // Reuse only that actor's grant; other spaces and subsequent requests
+          // still consult the authority, as does executor dispatch.
+          const grant =
+            membership.spaceId === actor.spaceId &&
+            actor.requesterUserId &&
+            actor.sharedGrantRevision &&
+            actor.sharedBotIds &&
+            actor.sharedCanSend !== undefined
+              ? {
+                  executionUserId: actor.userId,
+                  botIds: actor.sharedBotIds,
+                  revision: actor.sharedGrantRevision,
+                  canSend: actor.sharedCanSend,
+                  approvalRevision: actor.sharedApprovalRevision,
+                }
+              : await deps.sharedWorkspaceAccess!.resolve(humanId, membership.spaceId);
+          if (grant) sharedGrants.set(membership.spaceId, grant);
+          return Boolean(grant);
+        } catch {
+          return false;
+        }
+      }),
+    );
+    memberships = memberships.filter((_, index) => allowed[index]);
+  }
   const spaceIds = memberships.map((membership) => membership.spaceId);
   const inactiveSpaceIds = spaceIds.filter((spaceId) => spaceId !== actor.spaceId);
   const [
@@ -231,7 +276,22 @@ async function memberSpaceNavigation(
   ] = await Promise.all([
     repos.listBots(actor),
     groupRepos.listGroups(actor),
-    repos.listSpaceBotsForSpaces(actor, inactiveSpaceIds),
+    Promise.all([
+      repos.listSpaceBotsForSpaces(
+        { ...actor, userId: humanId },
+        inactiveSpaceIds.filter((id) => !sharedGrants.has(id)),
+      ),
+      ...inactiveSpaceIds
+        .filter((id) => sharedGrants.has(id))
+        .map(async (id) => {
+          const grant = sharedGrants.get(id)!;
+          const bots = await repos.listSpaceBotsForSpaces(
+            { ...actor, userId: grant.executionUserId },
+            [id],
+          );
+          return bots.filter((bot) => grant.botIds.includes(bot.id));
+        }),
+    ]).then((rows) => rows.flat()),
     groupRepos.listSpaceGroupsForSpaces(actor, inactiveSpaceIds),
     repos.listBotSectionsForSpaces(actor, spaceIds),
     createExternalConversationRepos(deps.prisma).listForSpaces(actor, spaceIds),
@@ -284,8 +344,12 @@ async function memberSpaceNavigation(
         isDefault: membership.space.isDefault,
         hasContent: spacesWithContent.has(membership.spaceId),
         botCount: botCounts.get(membership.spaceId) ?? 0,
-        canRename: membership.role === "owner" && membership.space.deletingAt === null,
+        canRename:
+          !sharedGrants.has(membership.spaceId) &&
+          membership.role === "owner" &&
+          membership.space.deletingAt === null,
         canDelete:
+          !sharedGrants.has(membership.spaceId) &&
           membership.role === "owner" &&
           !membership.space.isDefault &&
           memberships.length > 1 &&

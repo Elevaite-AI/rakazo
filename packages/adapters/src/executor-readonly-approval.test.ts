@@ -3,6 +3,7 @@ import type {
   AutoReviewProvider,
   ConnectorCall,
   ConnectorTool,
+  GovernedMemoryProvider,
 } from "@rakazo/adapter-kit";
 import { MEMORY_REVISION_CONFLICT_ERROR } from "@rakazo/adapter-kit";
 import type { ModelRoleSettings } from "@rakazo/contracts";
@@ -92,11 +93,13 @@ function fixture({
   fleetManagement = false,
   fleetBots = [] as { id: string; name: string }[],
   secondResource = false,
+  governedMemory,
   routines = [] as { name: string; prompt: string }[],
   connectedApps = [] as string[],
   userDevices,
   botUserId = "user-1",
 }: {
+  governedMemory?: GovernedMemoryProvider;
   /** The run starter's desktop connection. */
   userDevices?: UserDeviceGateway;
   /** The bot's owner; runs are started by user-1. */
@@ -242,7 +245,7 @@ function fixture({
   let offeredTools: string[] = [];
   let instructions = "";
   const prisma = {
-    user: { findUnique: vi.fn(async () => null) },
+    user: { findUnique: vi.fn(async () => ({ name: "Owner" })) },
     run: {
       findFirst: vi.fn(async () =>
         pendingInstructionsRunId ? { id: pendingInstructionsRunId } : null,
@@ -300,7 +303,14 @@ function fixture({
     message: {
       findFirst: vi.fn(async () => null),
       findUnique: vi.fn(async () =>
-        sourceRole ? { role: sourceRole, blocks: [{ kind: "text", text: prompt }] } : null,
+        sourceRole
+          ? {
+              role: sourceRole,
+              threadId: run.threadId,
+              createdAt: new Date("2026-01-01T00:00:00.000Z"),
+              blocks: [{ kind: "text", text: prompt }],
+            }
+          : null,
       ),
       findMany: vi.fn(async () => []),
       create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => ({
@@ -504,6 +514,7 @@ function fixture({
       commit,
     },
     memoryProviders: { resolve: async () => null },
+    governedMemory,
     events: {
       append: vi.fn(async () => undefined),
       notify: vi.fn(async () => undefined),
@@ -542,6 +553,7 @@ function fixture({
     commit,
     sharedMemoryState,
     pauseRunForInput,
+    finalizeRun,
     enqueue,
     async deliverInbound(promptText: string, busyTrigger?: string) {
       const pending: Array<Record<string, unknown>> = [];
@@ -2507,5 +2519,248 @@ describe("user_computer_shell", () => {
       { error: "The user's computer is not connected. Ask them to open the Rakazo desktop app." },
     ]);
     expect(requests).toEqual([]);
+  });
+});
+
+describe("native decision workflow", () => {
+  const audiences = {
+    audiences: {
+      private: { key: "owner-scope", label: "Owner only" },
+      shared: { key: "team-scope", label: "Workspace members" },
+    },
+  };
+  const sharedAudience = { audienceKey: "team-scope", audienceLabel: "Workspace members" };
+  const privateAudience = { audienceKey: "owner-scope", audienceLabel: "Owner only" };
+
+  const args = {
+    content: "Use an explicit owner confirmation before sharing decisions.",
+    visibility: "shared",
+  };
+  const approval = (id: string) => ({
+    approval: {
+      effectId: id,
+      runId: "run-1",
+      approverUserId: "user-1",
+      approvedAt: "2026-01-01T01:00:00.000Z",
+      kind: "native-owner-approval",
+    },
+  });
+
+  it.each(["save_decision", "correct_decision"] as const)(
+    "requires owner approval for %s even when the owner skips ordinary approvals",
+    async (name) => {
+      const execute = vi.fn(async (operation: string) =>
+        operation === "history"
+          ? {
+              revisions: [
+                {
+                  revision: 2,
+                  state: "current",
+                  visibility: "shared",
+                  editable: true,
+                  ...sharedAudience,
+                },
+              ],
+            }
+          : audiences,
+      );
+      const f = fixture({
+        name,
+        builtin: true,
+        sourceRole: "user",
+        autoReview: true,
+        skipApprovals: true,
+        rules: [{ effect: "always_allow", matchKind: "tool", matchValue: name }],
+        governedMemory: { execute },
+      });
+      f.setCalls([
+        {
+          args:
+            name === "save_decision"
+              ? args
+              : {
+                  factId: "fact-1",
+                  content: args.content,
+                  expectedRevision: 2,
+                  reason: "Correct the policy",
+                },
+          executionId: "proposal",
+        },
+      ]);
+      await f.run();
+      expect(execute.mock.calls.filter(([operation]) => operation === "publish")).toHaveLength(0);
+      expect(reviewMock).not.toHaveBeenCalled();
+      expect(f.pauseRunForInput).toHaveBeenCalledOnce();
+      expect(f.effects[0]?.status).toBe("intended");
+    },
+  );
+
+  it("always waits for a person and replays the exact approved wording and server identity", async () => {
+    const publish = vi.fn(async (operation: string) =>
+      operation === "status" ? audiences : { factId: "fact-1", revision: 1, status: "pending" },
+    );
+    const f = fixture({
+      name: "save_decision",
+      builtin: true,
+      sourceRole: "user",
+      autoReview: true,
+      rules: [{ effect: "always_allow", matchKind: "tool", matchValue: "save_decision" }],
+      governedMemory: { execute: publish },
+    });
+    f.setCalls([{ args, executionId: "call-1" }]);
+    await f.run();
+    expect(publish.mock.calls.filter(([operation]) => operation === "publish")).toHaveLength(0);
+    expect(reviewMock).not.toHaveBeenCalled();
+    expect(f.pauseRunForInput).toHaveBeenCalledOnce();
+    expect(f.effects[0]).toMatchObject({
+      status: "intended",
+      request: { ...args, ...sharedAudience },
+    });
+    f.effects[0]!.status = "approved";
+    f.effects[0]!.result = approval(f.effects[0]!.id);
+    f.setCalls([
+      { args: { content: "Forged reconstruction", visibility: "private" }, executionId: "call-2" },
+    ]);
+    await f.run();
+    expect(publish.mock.calls.filter(([operation]) => operation === "publish")).toHaveLength(1);
+    expect(publish).toHaveBeenCalledWith(
+      "publish",
+      { ...args, ...sharedAudience, expectedRevision: 0 },
+      expect.objectContaining({
+        userId: "user-1",
+        spaceId: "space-1",
+        agentId: "bot-1",
+        runId: "run-1",
+        threadId: "thread-1",
+        sourceMessageId: "source-1",
+        sourceTextHash: "ec8024defbb57133bcdff080ef0b92e90778b22ba4685465130867844004b7ed",
+        sourceRecordedAt: "2026-01-01T00:00:00.000Z",
+        approval: expect.objectContaining({ effectId: f.effects[0]!.id, approverUserId: "user-1" }),
+      }),
+    );
+    expect(f.effects).toHaveLength(1);
+    expect(f.effects[0]!.status).toBe("completed");
+  });
+
+  it("recovers an uncertain publication with the original approval and idempotency identity", async () => {
+    let publicationCalls = 0;
+    const execute = vi.fn(async (operation: string) => {
+      if (operation === "status") return audiences;
+      publicationCalls++;
+      if (publicationCalls === 1) throw new Error("Connection lost after remote commit");
+      return { factId: "fact-1", revision: 1, status: "current" };
+    });
+    const f = fixture({
+      name: "save_decision",
+      builtin: true,
+      sourceRole: "user",
+      governedMemory: { execute },
+    });
+    f.setCalls([{ args, executionId: "proposal" }]);
+    await f.run();
+    f.effects[0]!.status = "approved";
+    f.effects[0]!.result = approval(f.effects[0]!.id);
+    await f.run(true);
+    expect(f.effects[0]!.status).toBe("executing");
+    f.finalizeRun.mockClear();
+    await f.run();
+    expect(f.effects).toHaveLength(1);
+    expect(f.effects[0]!.status).toBe("completed");
+    expect(publicationCalls).toBe(2);
+    const publications = execute.mock.calls.filter(([op]) => op === "publish");
+    expect(publications).toHaveLength(2);
+    expect(f.pauseRunForInput).toHaveBeenCalledOnce();
+  });
+
+  it("requires the native approval proof rather than status alone", async () => {
+    const execute = vi.fn(async () => audiences);
+    const f = fixture({
+      name: "save_decision",
+      builtin: true,
+      sourceRole: "user",
+      governedMemory: { execute },
+    });
+    f.setCalls([{ args, executionId: "call-1" }]);
+    await f.run();
+    f.effects[0]!.status = "approved";
+    await f.run(true);
+    expect(
+      execute.mock.calls.every((call) => call.length === 0 || (call as unknown[])[0] !== "publish"),
+    ).toBe(true);
+  });
+
+  it("cannot publish denied proposals or accept identity fields", async () => {
+    const execute = vi.fn(async () => audiences);
+    const f = fixture({
+      name: "save_decision",
+      builtin: true,
+      sourceRole: "user",
+      governedMemory: { execute },
+    });
+    f.setCalls([{ args: { ...args, humanConfirmed: true }, executionId: "spoof" }]);
+    await f.run();
+    expect(f.effects).toEqual([]);
+    f.setCalls([{ args, executionId: "call-1" }]);
+    await f.run();
+    f.effects[0]!.status = "denied";
+    await f.run();
+    expect(
+      execute.mock.calls.every((call) => call.length === 0 || (call as unknown[])[0] !== "publish"),
+    ).toBe(true);
+  });
+
+  it("binds correction visibility to editable live history and rejects a stale revision before approval", async () => {
+    const execute = vi.fn(async () => ({
+      revisions: [
+        {
+          revision: 2,
+          state: "current",
+          visibility: "private",
+          editable: true,
+          ...privateAudience,
+        },
+      ],
+    }));
+    const f = fixture({
+      name: "correct_decision",
+      builtin: true,
+      sourceRole: "user",
+      governedMemory: { execute },
+    });
+    const correction = {
+      factId: "fact-1",
+      content: "Updated decision",
+      expectedRevision: 1,
+      reason: "Correct the wording",
+    };
+    f.setCalls([{ args: correction, executionId: "stale" }]);
+    await f.run();
+    expect(f.effects).toEqual([]);
+    f.setCalls([{ args: { ...correction, expectedRevision: 2 }, executionId: "current" }]);
+    await f.run();
+    expect(f.effects[0]?.request).toEqual({
+      ...correction,
+      expectedRevision: 2,
+      visibility: "private",
+      ...privateAudience,
+    });
+    expect(f.pauseRunForInput).toHaveBeenCalledOnce();
+  });
+
+  it.each(["webhook", "routine"])("refuses mutation in an unattended %s run", async (trigger) => {
+    const execute = vi.fn(async () => audiences);
+    const f = fixture({
+      name: "save_decision",
+      builtin: true,
+      sourceRole: "user",
+      trigger,
+      governedMemory: { execute },
+    });
+    f.setCalls([{ args, executionId: "call-1" }]);
+    await f.run();
+    expect(f.effects).toEqual([]);
+    expect(
+      execute.mock.calls.every((call) => call.length === 0 || (call as unknown[])[0] !== "publish"),
+    ).toBe(true);
   });
 });

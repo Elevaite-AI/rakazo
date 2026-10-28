@@ -62,6 +62,7 @@ import { markShellReady, useSpaceEpoch } from "../lib/space-switch";
 import { activeThreadRuns } from "../lib/thread-events";
 import { getToolActivityEnabled, subscribeToolActivity } from "../lib/tool-activity-preference";
 import { useDesktopBadge } from "../lib/use-desktop-badge";
+import { ConversationOnlyContext, SharedApproverContext } from "../lib/workspace-capabilities";
 import { HostComputerPrompt } from "./HostComputerPrompt";
 import { ArchivedChats } from "./shell/archived-chats";
 import { ChatContextMenu } from "./shell/chat-context-menu";
@@ -186,7 +187,11 @@ function SpaceShell() {
     peerBotId: string;
     peerBotName: string;
   } | null>("peerConversation", null);
-  const agentSkillsQuery = useQuery(queries.agentSkills.list.queryOptions());
+  const conversationOnly = bootstrapMe?.conversationOnly === true;
+  const agentSkillsQuery = useQuery({
+    ...queries.agentSkills.list.queryOptions(),
+    enabled: !conversationOnly,
+  });
   const agentSkills = agentSkillsQuery.data ?? NO_AGENT_SKILLS;
   const setAgentSkills = useCallback(
     (skills: AgentSkillCatalogEntry[]) =>
@@ -199,11 +204,14 @@ function SpaceShell() {
   const [teachBusy, setTeachBusy] = useState(false);
   const messagingStatus = useQuery({
     ...queries.messaging.status.queryOptions(),
-    enabled: Boolean(session.data?.user),
+    enabled: Boolean(session.data?.user) && !conversationOnly,
   }).data;
   const messagingSurfaceEnabled = messagingStatus?.enabled ?? false;
   const messagingProviders = messagingStatus?.providers ?? NO_PROVIDERS;
-  const memoryConfigQuery = useQuery(queries.memory.providerConfig.queryOptions());
+  const memoryConfigQuery = useQuery({
+    ...queries.memory.providerConfig.queryOptions(),
+    enabled: !conversationOnly,
+  });
   // Undefined while it first loads; null when the space has none or it could not be read.
   const memoryProviderConfig: SpaceMemoryConfig | null | undefined =
     memoryConfigQuery.data !== undefined
@@ -227,7 +235,7 @@ function SpaceShell() {
     });
   };
   const voiceStatus: VoiceStatus | null =
-    useQuery(queries.voice.status.queryOptions()).data ?? null;
+    useQuery({ ...queries.voice.status.queryOptions(), enabled: !conversationOnly }).data ?? null;
   const { mobileSidebarOpen, setMobileSidebarOpen, swipeHandlers } = useMobileSidebar();
   const isMobileSidebar = useIsMobile();
   const miniSidebar = botsSidebarCollapsed && !isMobileSidebar;
@@ -450,7 +458,7 @@ function SpaceShell() {
     inGroup,
     groupId,
     integrationsOpen: overlay?.kind === "integrations",
-    initialBotsLoaded,
+    initialBotsLoaded: initialBotsLoaded && !conversationOnly,
   });
   const shellReady =
     initialBotsLoaded &&
@@ -705,12 +713,14 @@ function SpaceShell() {
       className="relative flex h-full min-h-0 min-w-0 overflow-hidden bg-background text-foreground/90 [&[data-resizing-sidebar]_*[data-slot=sidebar-gap]]:transition-none [&[data-resizing-sidebar]_*[data-slot=sidebar-container]]:transition-none"
       {...swipeHandlers}
     >
-      <ComputerUpdateProgress
-        onCompleted={() => {
-          if (active) void refreshThread(active.id);
-        }}
-      />
-      {bootstrapMe !== undefined ? (
+      {!conversationOnly && (
+        <ComputerUpdateProgress
+          onCompleted={() => {
+            if (active) void refreshThread(active.id);
+          }}
+        />
+      )}
+      {!conversationOnly && bootstrapMe !== undefined ? (
         <HostComputerPrompt initialMe={bootstrapMe ?? undefined} onMeUpdated={setBootstrapMe} />
       ) : null}
       <ShellSidebar
@@ -982,135 +992,141 @@ function SpaceShell() {
         onAnswered={(botId) => navigate(`/app/${botId}`)}
       />
 
-      <ShellSidePanel
-        rpc={rpc}
-        panel={panel}
-        setPanel={setPanel}
-        active={active}
-        activeGroup={activeGroup}
-        bots={bots}
-        groups={groups}
-        setBots={setBots}
-        setGroups={setGroups}
-        navigate={navigate}
-        refreshBots={refreshBots}
-        refreshThread={refreshThread}
-        refreshGroupThread={refreshGroupThread}
-        refreshActiveThread={refreshActiveThread}
-        computer={computer}
-        computerOpen={computerOpen}
-        booting={booting}
-        computerPanel={
-          active ? (
-            <ComputerPanel
-              bot={active}
-              computer={computer}
-              computerOpen={computerOpen}
-              embeddedScreenUrl={computerControls.embeddedScreenUrl}
-              screenFrameKey={computerState.screenFrameKey}
-              screenFrameRef={computerState.setScreenFrame}
-              computerScreenError={computerControls.computerScreenError}
-              computerBooting={computerControls.computerBooting}
-              booting={booting}
-              showingRecoveryHint={computerControls.showingRecoveryHint}
-              showComputerRecoveryHint={computerControls.showComputerRecoveryHint}
-              sandboxProvider={bootstrapMe?.sandboxProvider}
-              onRecovered={(sandboxProvider) => {
-                setBootstrapMe((prev) => (prev ? { ...prev, sandboxProvider } : prev));
-                computerControls.holdComputerRecovery();
-              }}
-              onRecoveryDismissed={computerControls.releaseComputerRecovery}
-              onOpenComputerSettings={() => openSettings("computer")}
-              onOpen={() => void openComputer()}
-              routines={activeRoutines}
-              runningRoutineId={
-                snapshot?.run && isActive(snapshot.run.status)
-                  ? (snapshot.run.routineId ?? undefined)
-                  : undefined
-              }
-              onCreateRoutine={() => startRoutine()}
-              onEditRoutine={startRoutine}
-              onStopRun={() => void stopRun()}
-            />
-          ) : null
-        }
-        routineEditorProps={routineEditorProps}
-        openBot={openBot}
-        openCreatedBot={openCreatedBot}
-        droppedAgent={droppedAgent}
-        setDroppedAgent={setDroppedAgent}
-        importFromDialog={importFromDialog}
-        setCreateBotOpen={dialogs.setCreateBotOpen}
-        modelFocusRequest={modelFocusRequest}
-        openSettings={openSettings}
-        memoryProviderConfigured={memoryProviderConfig != null}
-        setAgentSkills={setAgentSkills}
-        onClearBot={(bot) => dialogs.setClearTarget({ kind: "bot", chat: bot })}
-      />
-
-      <Suspense fallback={null}>
-        <ShellDialogs
-          dialogs={dialogs}
+      {!conversationOnly && (
+        <ShellSidePanel
           rpc={rpc}
-          spaces={spaces}
-          bots={bots}
-          activeId={active?.id}
-          activeGroupId={activeGroup?.id}
-          alive={alive}
-          navigate={navigate}
+          panel={panel}
           setPanel={setPanel}
-          refreshBots={refreshBots}
-          removeSpace={removeSpace}
-          openSpaceSettings={openSpaceSettings}
-          closeMobileSidebar={() => setMobileSidebarOpen(false)}
-          createBot={createBot}
-          onImportFromCreate={() => {
-            dialogs.setCreateBotOpen(false);
-            openImport(null, true);
-          }}
-          clearOpenThread={() => {
-            thread.resetHistory();
-            thread.updateSnapshot((current) =>
-              current ? { ...current, messages: [], olderCursor: null, run: null } : current,
-            );
-          }}
-          deleteRoutineDialogProps={deleteRoutineDialogProps}
-        />
-        <AppOverlays
-          overlay={overlay}
-          setOverlay={setOverlay}
-          activeBotId={activeBotId.current}
-          stdioEnabled={bootstrapMe?.mcpStdioEnabled === true}
-          onConnectedAppsChange={setFooterLogos}
-        />
-      </Suspense>
-
-      <Suspense fallback={null}>
-        <SettingsOverlays
-          rpc={rpc}
-          queries={queries}
-          overlay={overlay}
-          setOverlay={setOverlay}
-          settingsSpace={settingsSpace}
-          showSettings={settingsSpaceId === null || Boolean(settingsSpace)}
-          spaces={spaces}
-          renameSpace={renameSpace}
-          removeSpace={removeSpace}
-          alive={alive}
-          user={session.data?.user}
-          refetchSession={() => session.refetch({ query: { disableCookieCache: true } })}
-          bootstrapMe={bootstrapMe}
-          setBootstrapMe={setBootstrapMe}
-          messagingEnabled={messagingSurfaceEnabled}
-          memoryConfig={memoryProviderConfig}
-          peerConversation={peerConversation}
-          setPeerConversation={setPeerConversation}
           active={active}
-          peerBot={resolveTranscriptBot}
+          activeGroup={activeGroup}
+          bots={bots}
+          groups={groups}
+          setBots={setBots}
+          setGroups={setGroups}
+          navigate={navigate}
+          refreshBots={refreshBots}
+          refreshThread={refreshThread}
+          refreshGroupThread={refreshGroupThread}
+          refreshActiveThread={refreshActiveThread}
+          computer={computer}
+          computerOpen={computerOpen}
+          booting={booting}
+          computerPanel={
+            active ? (
+              <ComputerPanel
+                bot={active}
+                computer={computer}
+                computerOpen={computerOpen}
+                embeddedScreenUrl={computerControls.embeddedScreenUrl}
+                screenFrameKey={computerState.screenFrameKey}
+                screenFrameRef={computerState.setScreenFrame}
+                computerScreenError={computerControls.computerScreenError}
+                computerBooting={computerControls.computerBooting}
+                booting={booting}
+                showingRecoveryHint={computerControls.showingRecoveryHint}
+                showComputerRecoveryHint={computerControls.showComputerRecoveryHint}
+                sandboxProvider={bootstrapMe?.sandboxProvider}
+                onRecovered={(sandboxProvider) => {
+                  setBootstrapMe((prev) => (prev ? { ...prev, sandboxProvider } : prev));
+                  computerControls.holdComputerRecovery();
+                }}
+                onRecoveryDismissed={computerControls.releaseComputerRecovery}
+                onOpenComputerSettings={() => openSettings("computer")}
+                onOpen={() => void openComputer()}
+                routines={activeRoutines}
+                runningRoutineId={
+                  snapshot?.run && isActive(snapshot.run.status)
+                    ? (snapshot.run.routineId ?? undefined)
+                    : undefined
+                }
+                onCreateRoutine={() => startRoutine()}
+                onEditRoutine={startRoutine}
+                onStopRun={() => void stopRun()}
+              />
+            ) : null
+          }
+          routineEditorProps={routineEditorProps}
+          openBot={openBot}
+          openCreatedBot={openCreatedBot}
+          droppedAgent={droppedAgent}
+          setDroppedAgent={setDroppedAgent}
+          importFromDialog={importFromDialog}
+          setCreateBotOpen={dialogs.setCreateBotOpen}
+          modelFocusRequest={modelFocusRequest}
+          openSettings={openSettings}
+          memoryProviderConfigured={memoryProviderConfig != null}
+          setAgentSkills={setAgentSkills}
+          onClearBot={(bot) => dialogs.setClearTarget({ kind: "bot", chat: bot })}
         />
-      </Suspense>
+      )}
 
-      {computerOpen && computerBot ? (
+      {!conversationOnly && (
+        <Suspense fallback={null}>
+          <ShellDialogs
+            dialogs={dialogs}
+            rpc={rpc}
+            spaces={spaces}
+            bots={bots}
+            activeId={active?.id}
+            activeGroupId={activeGroup?.id}
+            alive={alive}
+            navigate={navigate}
+            setPanel={setPanel}
+            refreshBots={refreshBots}
+            removeSpace={removeSpace}
+            openSpaceSettings={openSpaceSettings}
+            closeMobileSidebar={() => setMobileSidebarOpen(false)}
+            createBot={createBot}
+            onImportFromCreate={() => {
+              dialogs.setCreateBotOpen(false);
+              openImport(null, true);
+            }}
+            clearOpenThread={() => {
+              thread.resetHistory();
+              thread.updateSnapshot((current) =>
+                current ? { ...current, messages: [], olderCursor: null, run: null } : current,
+              );
+            }}
+            deleteRoutineDialogProps={deleteRoutineDialogProps}
+          />
+          <AppOverlays
+            overlay={overlay}
+            setOverlay={setOverlay}
+            activeBotId={activeBotId.current}
+            stdioEnabled={bootstrapMe?.mcpStdioEnabled === true}
+            onConnectedAppsChange={setFooterLogos}
+          />
+        </Suspense>
+      )}
+
+      {!conversationOnly && (
+        <Suspense fallback={null}>
+          <SettingsOverlays
+            rpc={rpc}
+            queries={queries}
+            overlay={overlay}
+            setOverlay={setOverlay}
+            settingsSpace={settingsSpace}
+            showSettings={settingsSpaceId === null || Boolean(settingsSpace)}
+            spaces={spaces}
+            renameSpace={renameSpace}
+            removeSpace={removeSpace}
+            alive={alive}
+            user={session.data?.user}
+            refetchSession={() => session.refetch({ query: { disableCookieCache: true } })}
+            bootstrapMe={bootstrapMe}
+            setBootstrapMe={setBootstrapMe}
+            messagingEnabled={messagingSurfaceEnabled}
+            memoryConfig={memoryProviderConfig}
+            peerConversation={peerConversation}
+            setPeerConversation={setPeerConversation}
+            active={active}
+            peerBot={resolveTranscriptBot}
+          />
+        </Suspense>
+      )}
+
+      {!conversationOnly && computerOpen && computerBot ? (
         <ComputerOverlay
           bot={computerBot}
           computer={computer}
@@ -1144,5 +1160,11 @@ function SpaceShell() {
   );
 
   // Empty chrome until the first bot list lands would flash "Select a bot" before the chat.
-  return initialBotsLoaded || initialLoadFailed ? shell : <PageLoading />;
+  return (
+    <ConversationOnlyContext.Provider value={conversationOnly}>
+      <SharedApproverContext.Provider value={bootstrapMe?.canApproveSharedActions === true}>
+        {initialBotsLoaded || initialLoadFailed ? shell : <PageLoading />}
+      </SharedApproverContext.Provider>
+    </ConversationOnlyContext.Provider>
+  );
 }

@@ -6,6 +6,7 @@ import type {
   AutoReviewProvider,
   BrowserProvider,
   ConnectorProvider,
+  GovernedMemoryProvider,
   JobPublisher,
   ManagedConnectorProvider,
   MediaGenerationProvider,
@@ -15,6 +16,7 @@ import type {
   SecretStore,
   WebProvider,
 } from "@rakazo/adapter-kit";
+import type { SharedWorkspaceAccess } from "@rakazo/contracts";
 import type { PrismaClient, ThreadEvents } from "@rakazo/db";
 import type { CloudAgentConnection } from "./cloud-agent-factory.js";
 import type { McpStdioPolicy } from "./mcp-transport.js";
@@ -25,6 +27,7 @@ import type { TicketChangeNotifier } from "./ticket-changes.js";
 import type { UserDeviceGateway } from "./user-device-protocol.js";
 
 export interface ExecutorDeps {
+  sharedWorkspaceAccess?: SharedWorkspaceAccess;
   maxUploadSizeBytes?: number;
   contextStrategy?: AgentContextStrategy;
   prisma: PrismaClient;
@@ -33,6 +36,7 @@ export interface ExecutorDeps {
   sandbox: SandboxProvider;
   memory: MemoryStore;
   memoryProviders: MemoryProviderResolver;
+  governedMemory?: GovernedMemoryProvider;
   home: AgentHomeStore;
   artifacts?: ArtifactStore;
   connector?: ConnectorProvider;

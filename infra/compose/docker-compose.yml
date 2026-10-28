@@ -77,10 +77,16 @@ x-app-environment: &app-environment
   PI_DEFAULT_CREDENTIALS:
   PI_SESSION_RECORDING:
   RAKAZO_LIVE_MODEL_CATALOG:
+  # Optional private decision-client configuration, required by both API and worker.
+  RAKAZO_SHARED_WORKSPACE_CONFIG:
   OPENROUTER_API_KEY:
   ANTHROPIC_API_KEY:
   TYPESAFE_API_KEY:
   MAX_TOOL_CALLS_PER_TURN:
+  # Optional governed decision workflow, shared by every agent on this deployment.
+  MEMORY_WORKFLOW_URL:
+  MEMORY_WORKFLOW_TOKEN:
+  MEMORY_WORKFLOW_ALLOW_PRIVATE_ENDPOINT:
   MODEL_STREAM_MAX_RETRIES:
   RAKAZO_LOCAL_MODELS:
   RAKAZO_LOCAL_MODELS_URL:
@@ -347,6 +353,8 @@ services:
     command: ["node", "--enable-source-maps", "dist/index.js"]
     environment:
       <<: *app-environment
+      RAKAZO_AGENT_GATEWAY_SPACE_IDS:
+      RAKAZO_AGENT_GATEWAY_TOKEN:
       # Sign-in, sessions, billing and inbound webhooks: API only.
       API_HOST: "0.0.0.0"
       API_PORT:

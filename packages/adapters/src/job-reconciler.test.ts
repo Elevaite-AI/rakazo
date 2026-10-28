@@ -58,14 +58,17 @@ describe("createJobReconciler", () => {
       throw new Error("queue unavailable");
     });
     const reconcileRoutineRetryNotices = vi.fn(async () => undefined);
+    const reconcileMemoryConnection = vi.fn(async () => undefined);
     await createJobReconciler({
       prisma,
       jobs,
       reconcileRoutineRetryNotices,
+      reconcileMemoryConnection,
       reconcileCloudAgents,
       reconcileComputerUpdates,
     }).reconcileOnce();
     expect(reconcileRoutineRetryNotices).toHaveBeenCalledOnce();
+    expect(reconcileMemoryConnection).toHaveBeenCalledOnce();
     expect(reconcileCloudAgents).toHaveBeenCalledOnce();
     expect(reconcileComputerUpdates).toHaveBeenCalledOnce();
     expect(prisma.run.findMany).toHaveBeenCalled();
@@ -502,7 +505,8 @@ describe("createJobReconciler", () => {
       release: vi.fn(async () => undefined),
     };
     const { jobs, enqueue } = publisher();
-    const reconciler = createJobReconciler({ prisma, jobs, leadership });
+    const reconcileMemoryConnection = vi.fn(async () => undefined);
+    const reconciler = createJobReconciler({ prisma, jobs, leadership, reconcileMemoryConnection });
 
     await reconciler.reconcileOnce();
     await reconciler.stop();
@@ -513,6 +517,7 @@ describe("createJobReconciler", () => {
     expect(prisma.messagingOutbound.findFirst).not.toHaveBeenCalled();
     expect(enqueue).not.toHaveBeenCalled();
     expect(leadership.release).toHaveBeenCalledOnce();
+    expect(reconcileMemoryConnection).not.toHaveBeenCalled();
   });
 
   it("retries terminal bot outcomes that were not returned", async () => {

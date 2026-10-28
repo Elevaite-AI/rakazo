@@ -48,3 +48,6 @@ verify-report
 .playwright-cli
 .deploy.lock
 .last-deployed-revision
+
+# Private deployment fixtures and credentials never belong in build contexts.
+**/.local

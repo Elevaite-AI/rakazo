@@ -360,6 +360,7 @@ export function createRepos(
           await prisma.bot.findMany({
             where: {
               spaceId: actor.spaceId,
+              ...(actor.sharedBotIds ? { id: { in: actor.sharedBotIds } } : {}),
               userId: actor.userId,
               archivedAt: options.archived ? { not: null } : null,
             },
@@ -481,6 +482,7 @@ export function createRepos(
     listSpaceBotsForSpaces,
 
     async getBot(actor: Actor, botId: string, options: { includeArchived?: boolean } = {}) {
+      if (actor.sharedBotIds && !actor.sharedBotIds.includes(botId)) throw new IsolationError();
       const bot = await prisma.bot.findFirst({
         where: {
           id: botId,

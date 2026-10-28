@@ -100,7 +100,11 @@ export function threadsRoutes(ctx: RouterContext) {
         // or revoked session stops within SESSION_RECHECK_MS, or at the next heartbeat when idle.
         let authorizedAt = Date.now();
         const assertStillAuthorized = async () => {
-          if (!context.stillAuthorized || Date.now() - authorizedAt < SESSION_RECHECK_MS) return;
+          if (
+            !context.stillAuthorized ||
+            Date.now() - authorizedAt < (context.actor.requesterUserId ? 500 : SESSION_RECHECK_MS)
+          )
+            return;
           if (!(await context.stillAuthorized())) throw new ORPCError("UNAUTHORIZED");
           authorizedAt = Date.now();
         };
@@ -111,7 +115,10 @@ export function threadsRoutes(ctx: RouterContext) {
             const next = await Promise.race([
               pending,
               new Promise<"silent">((resolve) => {
-                timer = setTimeout(() => resolve("silent"), HEARTBEAT_MS);
+                timer = setTimeout(
+                  () => resolve("silent"),
+                  context.actor.requesterUserId ? 500 : HEARTBEAT_MS,
+                );
               }),
             ]).finally(() => clearTimeout(timer));
             if (next === "silent") {
@@ -148,6 +155,23 @@ export function threadsRoutes(ctx: RouterContext) {
         }
       }),
       send: authed.threads.send.handler(async ({ context, input }) => {
+        if (context.actor.requesterUserId) {
+          const grant = await deps.sharedWorkspaceAccess?.resolve(
+            context.actor.requesterUserId,
+            context.actor.spaceId,
+          );
+          if (
+            !grant?.canSend ||
+            grant.revision !== context.actor.sharedGrantRevision ||
+            !input.botId ||
+            !grant.botIds.includes(input.botId)
+          )
+            throw new ORPCError("FORBIDDEN");
+          if (input.artifactIds?.length || input.mentions?.length || input.replyToMessageId)
+            throw new ORPCError("BAD_REQUEST", {
+              message: "The shared pilot supports text messages only.",
+            });
+        }
         const setup = await modelSetup(deps, context.actor);
         if (setup.needsModel) {
           throw new ORPCError("BAD_REQUEST", { message: MODEL_REQUIRED_SEND_ERROR });
@@ -516,6 +540,18 @@ export function threadsRoutes(ctx: RouterContext) {
         return { ok: true as const };
       }),
       answer: authed.threads.answer.handler(async ({ context, input }) => {
+        const actor = context.actor;
+        if (
+          actor.requesterUserId &&
+          (!actor.sharedApprovalRevision ||
+            !actor.sharedGrantRevision ||
+            !["allow", "deny"].includes(input.answer) ||
+            input.username ||
+            input.dismiss ||
+            input.clientNonce)
+        ) {
+          throw new ORPCError("FORBIDDEN");
+        }
         const target = await resolveThreadTarget(deps.prisma, context.actor, input);
         const answered = await deps.events
           .answerRunInput({
@@ -523,7 +559,16 @@ export function threadsRoutes(ctx: RouterContext) {
             threadId: target.threadId,
             runId: input.runId,
             messageId: input.messageId,
-            answeredByUserId: context.actor.userId,
+            answeredByUserId: actor.requesterUserId ?? actor.userId,
+            ...(actor.requesterUserId
+              ? {
+                  sharedApproval: {
+                    userId: actor.requesterUserId,
+                    grantRevision: actor.sharedGrantRevision!,
+                    approvalRevision: actor.sharedApprovalRevision!,
+                  },
+                }
+              : {}),
             answer: input.answer,
             clientNonce: input.clientNonce,
             username: input.username,

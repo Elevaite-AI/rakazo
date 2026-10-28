@@ -20,6 +20,7 @@ import type { BotsSidebarDensity } from "../../lib/bots-sidebar-density-pref";
 import type { Panel } from "../../lib/right-panel-state";
 import { clearSpaceSelection } from "../../lib/rpc";
 import { useSignOut } from "../../lib/sign-out";
+import { useConversationOnly } from "../../lib/workspace-capabilities";
 import { ActivityList } from "../ActivityList";
 import { SpaceSearchResults } from "../SpaceSearch";
 import type { SettingsSection } from "../shell-overlay";
@@ -79,16 +80,17 @@ export function ShellSidebar({
   openIntegrations: () => void;
 }) {
   const { t } = useLingui();
+  const conversationOnly = useConversationOnly();
   const {
     query,
     setQuery,
-    searchOpen,
+    searchOpen: requestedSearchOpen,
     setSearchOpen,
     searchHits,
     searchLoading,
-    showSpaceSearch,
+    showSpaceSearch: requestedShowSpaceSearch,
     jumpToSearchHit,
-    activityMode,
+    activityMode: requestedActivityMode,
     toggleActivityMode,
     activityFilters,
     setActivityFilters,
@@ -97,6 +99,9 @@ export function ShellSidebar({
     activityFiltersId,
     activityFilterCount,
   } = search;
+  const searchOpen = !conversationOnly && requestedSearchOpen;
+  const showSpaceSearch = !conversationOnly && requestedShowSpaceSearch;
+  const activityMode = !conversationOnly && requestedActivityMode;
   return (
     <>
       <button
@@ -237,11 +242,9 @@ export function ShellSidebar({
               {roster}
             </>
           )}
-          <div className={mini ? "hidden" : "contents"}>{archived}</div>
+          <div className={mini ? "hidden" : "contents"}>{!conversationOnly && archived}</div>
         </div>
-        <div className={mini ? "hidden" : "contents"}>
-          <PasskeyOffer />
-        </div>
+        <div className={mini ? "hidden" : "contents"}>{!conversationOnly && <PasskeyOffer />}</div>
         <ShellSidebarFooter
           mini={mini}
           logos={footerLogos}

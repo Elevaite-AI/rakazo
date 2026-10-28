@@ -70,6 +70,7 @@ export * from "./favicon.js";
 export * from "./fish-audio-voice.js";
 export * from "./fleet-tools.js";
 export * from "./github-webhook-emulator.js";
+export * from "./governed-memory-client.js";
 export * from "./graphql-connectors.js";
 export * from "./group-handoff.js";
 export * from "./home.js";
@@ -95,6 +96,7 @@ export * from "./mcp-server-tool.js";
 export * from "./mcp-transport.js";
 export * from "./media-generation-factory.js";
 export * from "./media-generation-provider.js";
+export * from "./memory-connection-monitor.js";
 export * from "./memory-provider-factory.js";
 export * from "./messaging-composition.js";
 export * from "./messaging-context.js";
@@ -153,6 +155,11 @@ export * from "./secret-store-factory.js";
 export * from "./secrets.js";
 export * from "./sendblue-emulator.js";
 export { SerenityMemoryProvider } from "./serenity-memory-provider.js";
+export {
+  bindSharedWorkspaceMembership,
+  loadSharedWorkspaceAccess,
+  SharedWorkspaceDecisionAccess,
+} from "./shared-workspace-access.js";
 export * from "./skill-tools.js";
 export * from "./slack-install-provider.js";
 export * from "./smtp-email.js";

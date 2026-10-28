@@ -129,7 +129,12 @@ export function promptTextForAttachments(
 export function blocksToAgentHistoryText(blocks: MessageBlock[]): string {
   return blocks
     .map((block) => {
-      if (block.kind === "text") return block.text;
+      if (block.kind === "text") {
+        const sender = block.sharedAuthor;
+        return sender
+          ? `Workspace sender (server record): ${JSON.stringify({ userId: sender.userId, label: sender.label })}\n${block.text}`
+          : block.text;
+      }
       if (block.kind === "chart") return `[chart: ${block.name}]`;
       if (block.kind === "image") return `[image: ${block.name}]`;
       if (block.kind === "file") {

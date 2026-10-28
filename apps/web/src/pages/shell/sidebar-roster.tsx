@@ -24,6 +24,7 @@ import {
   rosterHasUndismissedRunError,
   rosterWorkStatusLabel,
 } from "../../lib/roster-status";
+import { useConversationOnly } from "../../lib/workspace-capabilities";
 import type { RosterDropAction, RosterDropTarget } from "./roster-drop";
 import type { sidebarGroupsForSpaces } from "./space-sidebar";
 
@@ -91,6 +92,33 @@ export function SidebarRoster({
   mini?: boolean;
 }) {
   const { t } = useLingui();
+  const conversationOnly = useConversationOnly();
+  if (conversationOnly)
+    return (
+      <>
+        {sidebarGroups.map((group) => (
+          <div key={group.key}>
+            <div className="px-3 py-2 text-xs font-semibold">{group.spaceName}</div>
+            {group.bots.map((item) => (
+              <Button
+                key={item.chat.id}
+                variant="ghost"
+                className="w-full justify-start"
+                onClick={() =>
+                  openSpaceChat(
+                    group.spaceId,
+                    item.kind === "bot" ? `/app/${item.chat.id}` : `/app/g/${item.chat.id}`,
+                  )
+                }
+              >
+                {item.chat.name}
+              </Button>
+            ))}
+          </div>
+        ))}
+      </>
+    );
+
   return (
     <>
       {sidebarGroups.map((group, groupIndex) => {

@@ -43,6 +43,7 @@ import {
 } from "./auto-review.js";
 import { reviewWithBackups } from "./auto-review-backups.js";
 import type { ExecutorDeps } from "./executor-deps.js";
+import { GOVERNED_MEMORY_WRITE_TOOL_NAMES } from "./governed-memory-tools.js";
 import { findConnectedModelCredential } from "./model-selection.js";
 import { autoReviewCheckerProvider } from "./run-auto-review.js";
 import type { RunContext, RunTrust } from "./run-context.js";
@@ -60,6 +61,7 @@ import { resolveCompletedSecretLeftover } from "./run-secret.js";
 import type { ToolRequest } from "./run-tool-request.js";
 import { BUILTIN_AGENT_TOOL_NAMES, READ_ONLY_AGENT_TOOLS } from "./run-tool-selection.js";
 import { callMediaTool } from "./run-tools-files.js";
+import { callDecisionMemory } from "./run-tools-governed-memory.js";
 import { USER_COMPUTER_SHELL_TOOL, userComputerGate } from "./run-tools-user-computer.js";
 import { connectorTrustKeys } from "./run-trust.js";
 import { commandWatchFromTool } from "./schedule-tools.js";
@@ -231,7 +233,11 @@ export async function gateToolCall(
     unidentifiedAction && resolvedRules.decision === "allow"
       ? { ...resolvedRules, decision: "ask" as const }
       : resolvedRules;
-  const mode = approvalModeFromPreference(await ctx.trust.loadAutoReviewPreference());
+  // Publishing a governed decision records a person's explicit approval; a
+  // general preference to skip tool confirmations cannot manufacture that record.
+  const mode = GOVERNED_MEMORY_WRITE_TOOL_NAMES.has(name)
+    ? "ask"
+    : approvalModeFromPreference(await ctx.trust.loadAutoReviewPreference());
   const reviewable = mode === "auto" && !requiresMandatoryApproval;
   const injectedReview = reviewable ? deps.autoReview : undefined;
   const reviewSettings = !reviewable || injectedReview ? null : await ctx.trust.loadApprovalModel();
@@ -530,6 +536,11 @@ async function settleToolUncertainty(
   effectId: string,
   toolName: string,
 ) {
+  if (GOVERNED_MEMORY_WRITE_TOOL_NAMES.has(call.name)) {
+    const recovered = await callDecisionMemory(ctx, call);
+    if (await completeEffect(ctx.deps, effectId, "executing", recovered)) return recovered;
+    return uncertainEffectResult(call.name, call.args);
+  }
   if (call.name === "generate_image" || call.name === "generate_video") {
     const recovered = await callMediaTool(ctx, call, true);
     if (
