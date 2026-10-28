@@ -398,6 +398,10 @@ msgstr "關於 {label}"
 msgid "Access token (optional)"
 msgstr "存取權杖（選填）"
 
+#: src/pages/shell/chat-header.tsx
+msgid "Access unavailable"
+msgstr ""
+
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Account"
 msgstr "帳號"
@@ -418,6 +422,10 @@ msgstr "帳號標籤"
 #: src/components/SidebarFooter.tsx
 msgid "Account menu for {name}"
 msgstr "{name} 的帳號選單"
+
+#: src/pages/shell/chat-header.tsx
+msgid "Accounts with access"
+msgstr ""
 
 #. placeholder {0}: bot.name
 #. placeholder {0}: group.spaceName
@@ -795,6 +803,10 @@ msgstr "核准"
 msgid "Approve this server to let your agent use its tools."
 msgstr "核准此伺服器，讓代理程式使用它的工具。"
 
+#: src/pages/shell/chat-header.tsx
+msgid "Approver"
+msgstr ""
+
 #: src/pages/BotContextMenu.tsx
 msgid "Archive"
 msgstr "封存"
@@ -963,6 +975,7 @@ msgstr "機器人"
 #: src/pages/Shell.tsx
 #: src/pages/shell/agent-import.tsx
 #: src/pages/shell/avatar-studio-popover.tsx
+#: src/pages/shell/chat-header.tsx
 #: src/pages/shell/message-view.tsx
 msgid "Bot"
 msgstr "機器人"
@@ -2344,6 +2357,7 @@ msgstr "拒絕"
 #: src/pages/Board.tsx
 #: src/pages/shell/agent-import.tsx
 #: src/pages/shell/bot-panel.tsx
+#: src/pages/shell/chat-header.tsx
 msgid "Description"
 msgstr "描述"
 
@@ -3245,6 +3259,10 @@ msgstr "載入更早的執行紀錄"
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Load web images automatically"
 msgstr "自動載入網路圖片"
+
+#: src/pages/shell/chat-header.tsx
+msgid "Loading"
+msgstr ""
 
 #: src/pages/ActivityList.tsx
 msgid "Loading activity…"
@@ -5339,6 +5357,14 @@ msgstr "正在示範，傳送新訊息前請先停止示範。"
 msgid "Team"
 msgstr "團隊"
 
+#: src/pages/shell/chat-header.tsx
+msgid "Team bot editing is not available yet."
+msgstr ""
+
+#: src/pages/shell/chat-header.tsx
+msgid "Team bot settings"
+msgstr ""
+
 #: src/pages/shell/computer-view.tsx
 msgid "Team Computer"
 msgstr "團隊電腦"
@@ -5916,6 +5942,10 @@ msgstr "正在驗證…"
 #: src/pages/Artifacts.tsx
 msgid "Version"
 msgstr "版本"
+
+#: src/pages/shell/chat-header.tsx
+msgid "View team access"
+msgstr ""
 
 #: src/pages/SettingsOverlay.tsx
 #: src/pages/shell/bot-panel.tsx
