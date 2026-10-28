@@ -61,6 +61,44 @@ export function spacesRoutes(ctx: RouterContext) {
       list: authed.spaces.list.handler(async ({ context }) =>
         spaceNavigationDto(deps, context.actor, repos, groupRepos),
       ),
+      accessMembers: authed.spaces.accessMembers.handler(async ({ context, input }) => {
+        const actor = context.actor;
+        const access = deps.sharedWorkspaceAccess;
+        if (!actor.requesterUserId || !access || !actor.sharedBotIds?.includes(input.botId)) {
+          throw new ORPCError("FORBIDDEN");
+        }
+        const candidates = await runAsSystem("shared bot access roster", () =>
+          deps.prisma.spaceMember.findMany({
+            where: { spaceId: actor.spaceId },
+            select: {
+              userId: true,
+              member: { select: { user: { select: { name: true } } } },
+            },
+            orderBy: { createdAt: "asc" },
+          }),
+        );
+        const decisions = await runAsSystem("shared bot access roster decisions", () =>
+          Promise.all(
+            candidates
+              .filter((candidate) => candidate.userId !== actor.userId)
+              .map(async (candidate) => ({
+                candidate,
+                grant: await access.resolve(candidate.userId, actor.spaceId),
+              })),
+          ),
+        );
+        return decisions.flatMap(({ candidate, grant }) =>
+          grant?.botIds.includes(input.botId)
+            ? [
+                {
+                  id: candidate.userId,
+                  name: candidate.member.user.name,
+                  canApprove: Boolean(grant.approvalRevision),
+                },
+              ]
+            : [],
+        );
+      }),
       // Seeds a Space whose id does not exist yet; the member limit is checked inside.
       create: authed.spaces.create.handler(({ context, input }) =>
         runAsSystem("create a Space for its member", async () => {

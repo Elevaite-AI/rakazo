@@ -397,6 +397,10 @@ msgstr "{label} के बारे में"
 msgid "Access token (optional)"
 msgstr "एक्सेस टोकन (वैकल्पिक)"
 
+#: src/pages/shell/chat-header.tsx
+msgid "Access unavailable"
+msgstr ""
+
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Account"
 msgstr "खाता"
@@ -417,6 +421,10 @@ msgstr ""
 #: src/components/SidebarFooter.tsx
 msgid "Account menu for {name}"
 msgstr "{name} का खाता मेन्यू"
+
+#: src/pages/shell/chat-header.tsx
+msgid "Accounts with access"
+msgstr ""
 
 #. placeholder {0}: bot.name
 #. placeholder {0}: group.spaceName
@@ -794,6 +802,10 @@ msgstr "अनुमोदित करें"
 msgid "Approve this server to let your agent use its tools."
 msgstr "अपने एजेंट को इसके टूल उपयोग करने देने के लिए इस सर्वर को अनुमोदित करें।"
 
+#: src/pages/shell/chat-header.tsx
+msgid "Approver"
+msgstr ""
+
 #: src/pages/BotContextMenu.tsx
 msgid "Archive"
 msgstr "आर्काइव करें"
@@ -962,6 +974,7 @@ msgstr "बॉट"
 #: src/pages/Shell.tsx
 #: src/pages/shell/agent-import.tsx
 #: src/pages/shell/avatar-studio-popover.tsx
+#: src/pages/shell/chat-header.tsx
 #: src/pages/shell/message-view.tsx
 msgid "Bot"
 msgstr "बॉट"
@@ -2343,6 +2356,7 @@ msgstr "अस्वीकार करें"
 #: src/pages/Board.tsx
 #: src/pages/shell/agent-import.tsx
 #: src/pages/shell/bot-panel.tsx
+#: src/pages/shell/chat-header.tsx
 msgid "Description"
 msgstr "विवरण"
 
@@ -3244,6 +3258,10 @@ msgstr "पुराने रन लोड करें"
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Load web images automatically"
 msgstr "वेब छवियाँ अपने-आप लोड करें"
+
+#: src/pages/shell/chat-header.tsx
+msgid "Loading"
+msgstr ""
 
 #: src/pages/ActivityList.tsx
 msgid "Loading activity…"
@@ -5338,6 +5356,14 @@ msgstr "सिखाना जारी है। नया संदेश भ�
 msgid "Team"
 msgstr "टीम"
 
+#: src/pages/shell/chat-header.tsx
+msgid "Team bot editing is not available yet."
+msgstr ""
+
+#: src/pages/shell/chat-header.tsx
+msgid "Team bot settings"
+msgstr ""
+
 #: src/pages/shell/computer-view.tsx
 msgid "Team Computer"
 msgstr "टीम कंप्यूटर"
@@ -5914,6 +5940,10 @@ msgstr "पुष्टि की जा रही है…"
 
 #: src/pages/Artifacts.tsx
 msgid "Version"
+msgstr ""
+
+#: src/pages/shell/chat-header.tsx
+msgid "View team access"
 msgstr ""
 
 #: src/pages/SettingsOverlay.tsx

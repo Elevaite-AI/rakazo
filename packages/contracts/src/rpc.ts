@@ -265,6 +265,15 @@ export const appContract = {
   },
   spaces: {
     list: oc.output(SpaceNavigationSchema),
+    accessMembers: oc.input(z.object({ botId: Id })).output(
+      z.array(
+        z.object({
+          id: Id,
+          name: z.string(),
+          canApprove: z.boolean(),
+        }),
+      ),
+    ),
     create: oc.input(z.object({ name: spaceName })).output(SpaceSchema),
     rename: oc
       .input(z.object({ spaceId: Id, name: spaceName }))

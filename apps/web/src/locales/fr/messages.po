@@ -397,6 +397,10 @@ msgstr "À propos de {label}"
 msgid "Access token (optional)"
 msgstr "Jeton d'accès (optionnel)"
 
+#: src/pages/shell/chat-header.tsx
+msgid "Access unavailable"
+msgstr ""
+
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Account"
 msgstr "Compte"
@@ -417,6 +421,10 @@ msgstr "Libellé du compte"
 #: src/components/SidebarFooter.tsx
 msgid "Account menu for {name}"
 msgstr "Menu du compte de {name}"
+
+#: src/pages/shell/chat-header.tsx
+msgid "Accounts with access"
+msgstr ""
 
 #. placeholder {0}: bot.name
 #. placeholder {0}: group.spaceName
@@ -794,6 +802,10 @@ msgstr "Approuver"
 msgid "Approve this server to let your agent use its tools."
 msgstr "Approuvez ce serveur pour permettre à votre agent d'utiliser ses outils."
 
+#: src/pages/shell/chat-header.tsx
+msgid "Approver"
+msgstr ""
+
 #: src/pages/BotContextMenu.tsx
 msgid "Archive"
 msgstr "Archiver"
@@ -962,6 +974,7 @@ msgstr "bot"
 #: src/pages/Shell.tsx
 #: src/pages/shell/agent-import.tsx
 #: src/pages/shell/avatar-studio-popover.tsx
+#: src/pages/shell/chat-header.tsx
 #: src/pages/shell/message-view.tsx
 msgid "Bot"
 msgstr "Bot"
@@ -2343,6 +2356,7 @@ msgstr "Refuser"
 #: src/pages/Board.tsx
 #: src/pages/shell/agent-import.tsx
 #: src/pages/shell/bot-panel.tsx
+#: src/pages/shell/chat-header.tsx
 msgid "Description"
 msgstr "Description"
 
@@ -3244,6 +3258,10 @@ msgstr "Charger les exécutions précédentes"
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Load web images automatically"
 msgstr "Charger automatiquement les images web"
+
+#: src/pages/shell/chat-header.tsx
+msgid "Loading"
+msgstr ""
 
 #: src/pages/ActivityList.tsx
 msgid "Loading activity…"
@@ -5338,6 +5356,14 @@ msgstr "Enseignement en cours. Arrêtez l'enseignement avant d'envoyer un nouvea
 msgid "Team"
 msgstr "Équipe"
 
+#: src/pages/shell/chat-header.tsx
+msgid "Team bot editing is not available yet."
+msgstr ""
+
+#: src/pages/shell/chat-header.tsx
+msgid "Team bot settings"
+msgstr ""
+
 #: src/pages/shell/computer-view.tsx
 msgid "Team Computer"
 msgstr "Ordinateur d'équipe"
@@ -5915,6 +5941,10 @@ msgstr "Vérification en cours…"
 #: src/pages/Artifacts.tsx
 msgid "Version"
 msgstr "Version"
+
+#: src/pages/shell/chat-header.tsx
+msgid "View team access"
+msgstr ""
 
 #: src/pages/SettingsOverlay.tsx
 #: src/pages/shell/bot-panel.tsx

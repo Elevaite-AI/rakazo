@@ -397,6 +397,10 @@ msgstr "关于{label}"
 msgid "Access token (optional)"
 msgstr "访问令牌（可选）"
 
+#: src/pages/shell/chat-header.tsx
+msgid "Access unavailable"
+msgstr ""
+
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Account"
 msgstr "账户"
@@ -417,6 +421,10 @@ msgstr ""
 #: src/components/SidebarFooter.tsx
 msgid "Account menu for {name}"
 msgstr "{name} 的账户菜单"
+
+#: src/pages/shell/chat-header.tsx
+msgid "Accounts with access"
+msgstr ""
 
 #. placeholder {0}: bot.name
 #. placeholder {0}: group.spaceName
@@ -794,6 +802,10 @@ msgstr "批准"
 msgid "Approve this server to let your agent use its tools."
 msgstr "批准此服务器后，Agent 才能使用它的工具。"
 
+#: src/pages/shell/chat-header.tsx
+msgid "Approver"
+msgstr ""
+
 #: src/pages/BotContextMenu.tsx
 msgid "Archive"
 msgstr "归档"
@@ -962,6 +974,7 @@ msgstr "Bot"
 #: src/pages/Shell.tsx
 #: src/pages/shell/agent-import.tsx
 #: src/pages/shell/avatar-studio-popover.tsx
+#: src/pages/shell/chat-header.tsx
 #: src/pages/shell/message-view.tsx
 msgid "Bot"
 msgstr "Bot"
@@ -2343,6 +2356,7 @@ msgstr "拒绝"
 #: src/pages/Board.tsx
 #: src/pages/shell/agent-import.tsx
 #: src/pages/shell/bot-panel.tsx
+#: src/pages/shell/chat-header.tsx
 msgid "Description"
 msgstr "描述"
 
@@ -3244,6 +3258,10 @@ msgstr "加载更早的运行记录"
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Load web images automatically"
 msgstr "自动加载网络图片"
+
+#: src/pages/shell/chat-header.tsx
+msgid "Loading"
+msgstr ""
 
 #: src/pages/ActivityList.tsx
 msgid "Loading activity…"
@@ -5338,6 +5356,14 @@ msgstr "正在示范，发送新消息前请先停止示范。"
 msgid "Team"
 msgstr "团队"
 
+#: src/pages/shell/chat-header.tsx
+msgid "Team bot editing is not available yet."
+msgstr ""
+
+#: src/pages/shell/chat-header.tsx
+msgid "Team bot settings"
+msgstr ""
+
 #: src/pages/shell/computer-view.tsx
 msgid "Team Computer"
 msgstr "团队电脑"
@@ -5914,6 +5940,10 @@ msgstr "正在校验…"
 
 #: src/pages/Artifacts.tsx
 msgid "Version"
+msgstr ""
+
+#: src/pages/shell/chat-header.tsx
+msgid "View team access"
 msgstr ""
 
 #: src/pages/SettingsOverlay.tsx

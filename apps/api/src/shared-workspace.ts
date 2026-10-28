@@ -23,6 +23,7 @@ export const SHARED_WORKSPACE_ROUTES = new Set([
   "me",
   "bootstrap",
   "spaces.list",
+  "spaces.accessMembers",
   "bots.list",
   "bots.get",
   "threads.head",
