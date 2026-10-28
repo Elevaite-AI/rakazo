@@ -1,2 +1,5 @@
 .local/
 node_modules/
+authority-docker.env
+authority-owner.json
+authority-reader.json
