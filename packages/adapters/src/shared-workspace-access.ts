@@ -126,7 +126,9 @@ function requestDecisionSocket(
   });
 }
 
-/** Optional deployment adapter. A missing file or malformed config never falls back. */
+/** Optional deployment adapter. Each governed space has its own scoped authority;
+ * the original single-space config remains valid during an image-only upgrade.
+ * A missing file or malformed config never falls back. */
 export async function loadSharedWorkspaceAccess(
   source: NodeJS.ProcessEnv = process.env,
 ): Promise<SharedWorkspaceAccess | undefined> {
@@ -145,6 +147,47 @@ export async function loadSharedWorkspaceAccess(
     config = JSON.parse(await readFile(filename, "utf8"));
   } catch {
     throw new Error("Invalid shared workspace configuration");
+  }
+  if (config && typeof config === "object" && !Array.isArray(config) && "authorities" in config) {
+    if (
+      Object.keys(config).length !== 1 ||
+      !Array.isArray(config.authorities) ||
+      config.authorities.length === 0
+    )
+      throw new Error("Invalid shared workspace config");
+    const authorities = new Map<string, SharedWorkspaceDecisionAccess>();
+    for (const entry of config.authorities) {
+      if (
+        !entry ||
+        typeof entry !== "object" ||
+        Array.isArray(entry) ||
+        Object.keys(entry).some(
+          (key) => !["spaceId", "url", "token", "socketPath"].includes(key),
+        ) ||
+        typeof entry.spaceId !== "string" ||
+        !entry.spaceId ||
+        entry.spaceId.length > 100 ||
+        authorities.has(entry.spaceId) ||
+        typeof entry.url !== "string" ||
+        typeof entry.token !== "string" ||
+        ("socketPath" in entry && typeof entry.socketPath !== "string")
+      )
+        throw new Error("Invalid shared workspace config");
+      authorities.set(
+        entry.spaceId,
+        new SharedWorkspaceDecisionAccess(
+          entry.url,
+          entry.token,
+          new Set([entry.spaceId]),
+          "socketPath" in entry ? entry.socketPath : undefined,
+        ),
+      );
+    }
+    return {
+      isSharedSpace: (spaceId) => authorities.has(spaceId),
+      resolve: async (subject, spaceId) =>
+        (await authorities.get(spaceId)?.resolve(subject, spaceId)) ?? null,
+    };
   }
   if (
     !config ||
