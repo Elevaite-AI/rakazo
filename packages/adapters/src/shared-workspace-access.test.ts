@@ -94,6 +94,56 @@ describe("shared workspace deployment access", () => {
       "Permission authority unavailable",
     );
   });
+  it("routes two shared spaces to separate scoped authorities", async () => {
+    const dir = await directory();
+    const seen: string[] = [];
+    const servers = ["team", "marketing"].map((spaceId) =>
+      createServer(async (req, res) => {
+        let body = "";
+        for await (const chunk of req) body += chunk;
+        const input = JSON.parse(body);
+        seen.push(`${spaceId}:${input.spaceId}:${input.subject}`);
+        res.setHeader("content-type", "application/json");
+        res.end(
+          JSON.stringify({
+            grant: input.spaceId === spaceId ? { ...grant, botIds: [`${spaceId}-bot`] } : null,
+          }),
+        );
+      }),
+    );
+    const sockets = ["team", "marketing"].map((spaceId) => `${dir}/${spaceId}.sock`);
+    try {
+      await Promise.all(
+        servers.map(
+          (server, index) => new Promise<void>((resolve) => server.listen(sockets[index], resolve)),
+        ),
+      );
+      const file = `${dir}/client.json`;
+      const authorities = ["team", "marketing"].map((spaceId, index) => ({
+        spaceId,
+        url: "http://127.0.0.1/v1/resolve",
+        token,
+        socketPath: sockets[index],
+      }));
+      await writeFile(file, JSON.stringify({ authorities }), { mode: 0o600 });
+      const access = await loadSharedWorkspaceAccess({ RAKAZO_SHARED_WORKSPACE_CONFIG: file });
+      expect(access?.isSharedSpace("team")).toBe(true);
+      expect(access?.isSharedSpace("marketing")).toBe(true);
+      expect(access?.isSharedSpace("private")).toBe(false);
+      expect((await access?.resolve("member", "team"))?.botIds).toEqual(["team-bot"]);
+      expect((await access?.resolve("member", "marketing"))?.botIds).toEqual(["marketing-bot"]);
+      expect(await access?.resolve("member", "private")).toBeNull();
+      expect(seen).toEqual(["team:team:member", "marketing:marketing:member"]);
+      await writeFile(file, JSON.stringify({ authorities: [...authorities, authorities[0]] }));
+      await expect(
+        loadSharedWorkspaceAccess({ RAKAZO_SHARED_WORKSPACE_CONFIG: file }),
+      ).rejects.toThrow("Invalid shared workspace config");
+    } finally {
+      await Promise.all(
+        servers.map((server) => new Promise<void>((resolve) => server.close(() => resolve()))),
+      );
+    }
+  });
   it("requires native membership and versions deletion/recreation independently of the external grant", async () => {
     let member: { id: string; createdAt: Date } | null = {
       id: "first-membership",
