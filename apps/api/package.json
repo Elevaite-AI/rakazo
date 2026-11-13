@@ -20,7 +20,7 @@
     "shared-storage": "tsx src/cli/shared-storage.ts"
   },
   "dependencies": {
-    "@hono/node-server": "2.1.5",
+    "@hono/node-server": "2.1.6",
     "@orpc/server": "1.15.7",
     "@rakazo/adapter-kit": "workspace:*",
     "@rakazo/adapters": "workspace:*",
