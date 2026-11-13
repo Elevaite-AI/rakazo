@@ -11,7 +11,7 @@
     "test": "vitest run --root ../.. packages/testkit/src"
   },
   "dependencies": {
-    "@hono/node-server": "2.1.5",
+    "@hono/node-server": "2.1.6",
     "@rakazo/adapter-kit": "workspace:*",
     "@rakazo/adapters": "workspace:*",
     "@rakazo/contracts": "workspace:*",
